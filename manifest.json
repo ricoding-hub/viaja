@@ -1,0 +1,10 @@
+{
+  "name": "Viaja — Planeador de viajes en grupo",
+  "short_name": "Viaja",
+  "description": "Organiza viajes en grupo: presupuesto en vivo, votación de opciones e ideas en un solo lugar.",
+  "start_url": "./Viaja.html",
+  "display": "standalone",
+  "background_color": "#FBF6EE",
+  "theme_color": "#11BFB2",
+  "orientation": "portrait"
+}
