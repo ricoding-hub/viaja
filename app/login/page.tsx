@@ -1,23 +1,39 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Icon } from "@/components/ui";
 import { SITE_URL, isSupabaseConfigured } from "@/lib/supabase/env";
 
+type Mode = "magic" | "password";
+
 export default function LoginPage() {
   const router = useRouter();
   const configured = isSupabaseConfigured();
+  const [mode, setMode] = useState<Mode>("magic");
+  const [isSignup, setIsSignup] = useState(false);
   const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [sent, setSent] = useState(false);
-  const [busy, setBusy] = useState<null | "google" | "magic">(null);
+  const [busy, setBusy] = useState<null | "google" | "magic" | "password">(null);
   const [err, setErr] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
+
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    if (p.get("error")) setErr("No se pudo completar el inicio de sesión. Verifica la config de URLs en Supabase.");
+  }, []);
+
+  async function client() {
+    const { getBrowserClient } = await import("@/lib/supabase/client");
+    return getBrowserClient();
+  }
 
   async function google() {
     try {
       setBusy("google");
       setErr(null);
-      const { getBrowserClient } = await import("@/lib/supabase/client");
-      const { error } = await getBrowserClient().auth.signInWithOAuth({
+      const supabase = await client();
+      const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
         options: { redirectTo: `${SITE_URL}/auth/callback` },
       });
@@ -34,8 +50,8 @@ export default function LoginPage() {
     try {
       setBusy("magic");
       setErr(null);
-      const { getBrowserClient } = await import("@/lib/supabase/client");
-      const { error } = await getBrowserClient().auth.signInWithOtp({
+      const supabase = await client();
+      const { error } = await supabase.auth.signInWithOtp({
         email: email.trim(),
         options: { emailRedirectTo: `${SITE_URL}/auth/callback` },
       });
@@ -48,11 +64,46 @@ export default function LoginPage() {
     }
   }
 
+  async function withPassword(e: React.FormEvent) {
+    e.preventDefault();
+    if (!email.trim() || !password) return;
+    try {
+      setBusy("password");
+      setErr(null);
+      setInfo(null);
+      const supabase = await client();
+      if (isSignup) {
+        const { data, error } = await supabase.auth.signUp({
+          email: email.trim(),
+          password,
+          options: { emailRedirectTo: `${SITE_URL}/auth/callback` },
+        });
+        if (error) throw error;
+        if (data.session) {
+          router.push("/");
+          router.refresh();
+        } else {
+          setInfo("Cuenta creada. Si pide confirmación, revisa tu correo; si no, ya puedes entrar.");
+          setIsSignup(false);
+        }
+      } else {
+        const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+        if (error) throw error;
+        router.push("/");
+        router.refresh();
+      }
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Error de autenticación");
+    } finally {
+      setBusy(null);
+    }
+  }
+
   return (
     <div className="scroll">
       <div className="safe-top" />
-      <div className="pad col center" style={{ minHeight: "70%", justifyContent: "center", gap: 18, textAlign: "center", padding: "0 26px" }}>
-        <div className="floaty" style={{ width: 88, height: 88, borderRadius: 26, background: "linear-gradient(135deg, var(--turq), var(--turq-deep))", boxShadow: "var(--sh-turq)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 44 }}>
+      <div className="pad col center" style={{ minHeight: "78%", justifyContent: "center", gap: 18, textAlign: "center", padding: "24px 26px" }}>
+        <div className="floaty" style={{ width: 84, height: 84, borderRadius: 24, background: "linear-gradient(135deg, var(--turq), var(--turq-deep))", boxShadow: "var(--sh-turq)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 42 }}>
           🌴
         </div>
         <div>
@@ -64,9 +115,7 @@ export default function LoginPage() {
 
         {!configured ? (
           <div className="col gap10" style={{ width: "100%" }}>
-            <button className="btn btn-coral btn-block" onClick={() => router.push("/")}>
-              Entrar a la demo 🌴
-            </button>
+            <button className="btn btn-coral btn-block" onClick={() => router.push("/")}>Entrar a la demo 🌴</button>
             <p className="muted" style={{ fontSize: 12 }}>Modo demo · sin cuenta. Conecta Supabase para guardar de verdad.</p>
           </div>
         ) : sent ? (
@@ -74,7 +123,7 @@ export default function LoginPage() {
             <Icon name="mail" size={30} color="var(--turq)" />
             <h3 style={{ fontSize: 18 }}>Revisa tu correo 📬</h3>
             <p className="muted" style={{ fontSize: 13 }}>Te enviamos un enlace mágico a <b>{email}</b>.</p>
-            <button className="btn btn-ghost btn-sm" onClick={() => setSent(false)}>Usar otro correo</button>
+            <button className="btn btn-ghost btn-sm" onClick={() => setSent(false)}>Volver</button>
           </div>
         ) : (
           <div className="col gap12" style={{ width: "100%" }}>
@@ -86,12 +135,32 @@ export default function LoginPage() {
               <span style={{ flex: 1, height: 1, background: "var(--line)" }} /> o <span style={{ flex: 1, height: 1, background: "var(--line)" }} />
             </div>
 
-            <form className="col gap10" onSubmit={magic}>
-              <input className="input" type="email" inputMode="email" placeholder="tu@correo.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
-              <button className="btn btn-turq btn-block" type="submit" disabled={busy !== null || !email.trim()}>
-                {busy === "magic" ? "Enviando…" : "Enviar enlace mágico"}
-              </button>
-            </form>
+            <div className="seg">
+              <button className={mode === "magic" ? "on" : ""} onClick={() => { setMode("magic"); setErr(null); }}>Enlace mágico</button>
+              <button className={mode === "password" ? "on" : ""} onClick={() => { setMode("password"); setErr(null); }}>Contraseña</button>
+            </div>
+
+            {mode === "magic" ? (
+              <form className="col gap10" onSubmit={magic}>
+                <input className="input" type="email" inputMode="email" placeholder="tu@correo.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                <button className="btn btn-turq btn-block" type="submit" disabled={busy !== null || !email.trim()}>
+                  {busy === "magic" ? "Enviando…" : "Enviar enlace mágico"}
+                </button>
+              </form>
+            ) : (
+              <form className="col gap10" onSubmit={withPassword}>
+                <input className="input" type="email" inputMode="email" placeholder="tu@correo.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
+                <input className="input" type="password" placeholder="Contraseña" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} />
+                <button className="btn btn-turq btn-block" type="submit" disabled={busy !== null || !email.trim() || !password}>
+                  {busy === "password" ? "…" : isSignup ? "Crear cuenta" : "Entrar"}
+                </button>
+                <button type="button" className="muted" style={{ background: "none", border: 0, fontSize: 12.5, cursor: "pointer" }} onClick={() => setIsSignup(!isSignup)}>
+                  {isSignup ? "¿Ya tienes cuenta? Inicia sesión" : "¿Nueva cuenta? Créala"}
+                </button>
+              </form>
+            )}
+
+            {info && <p style={{ color: "var(--turq-deep)", fontSize: 12.5 }}>{info}</p>}
             {err && <p style={{ color: "var(--coral-deep)", fontSize: 12.5 }}>{err}</p>}
           </div>
         )}
