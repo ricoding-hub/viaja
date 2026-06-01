@@ -13,8 +13,8 @@ export default function GuestsPage() {
   const ready = useReady();
   const router = useRouter();
   const openSheet = useUI((s) => s.openSheet);
-  const { toggleConfirm } = useActions();
-  const { members, options, budget, viewerId } = useTrip(tripId);
+  const { toggleConfirm, setMemberRole, removeMember } = useActions();
+  const { members, options, budget, viewerId, isHost } = useTrip(tripId);
 
   const confirmed = members.filter((p) => p.host || p.confirmed).length;
   const header = (
@@ -22,7 +22,7 @@ export default function GuestsPage() {
       title="Invitados"
       subtitle={`${confirmed}/${members.length} confirmados`}
       back={() => router.push(`/trip/${tripId}`)}
-      actions={<button className="btn btn-ghost btn-sm" onClick={() => openSheet("viewer")}>Ver como</button>}
+      actions={<button className="btn btn-coral btn-sm" onClick={() => openSheet("invite")}><Icon name="plus" size={16} color="#fff" /> Invitar</button>}
     />
   );
 
@@ -80,6 +80,16 @@ export default function GuestsPage() {
                 <div role="progressbar" aria-valuenow={Math.round(pct)} aria-valuemin={0} aria-valuemax={100} aria-label={`Votos de ${p.name}`}>
                   <Meter pct={pct} h={6} color={p.color} />
                 </div>
+                {isHost && !isViewer && (
+                  <div className="row center gap8" style={{ borderTop: "1px solid var(--line)", paddingTop: 10 }}>
+                    <button className="btn btn-soft btn-sm grow" onClick={() => setMemberRole(tripId, p.id, p.host ? "guest" : "host")}>
+                      <Icon name="crown" size={15} color={p.host ? "var(--ink-soft)" : "var(--sun)"} /> {p.host ? "Quitar organizador" : "Hacer organizador"}
+                    </button>
+                    <button className="icon-btn" style={{ width: 40, height: 40 }} onClick={() => removeMember(tripId, p.id)} aria-label={`Quitar a ${p.name}`} title="Quitar del viaje">
+                      <Icon name="trash" size={16} color="var(--coral-deep)" />
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })}

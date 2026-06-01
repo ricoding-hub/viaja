@@ -1,4 +1,4 @@
-import type { Cat, TripStatus } from "./types";
+import type { Cat, Tone, TripStatus } from "./types";
 
 /** Default trip length (nights) used for per-person-per-day costing when a
  *  trip has no explicit dates. Matches the prototype demo (DAYS = 5). */
@@ -27,6 +27,23 @@ export const STATUS_TAG: Record<TripStatus, [string, string]> = {
   idea: ["tag-sun", "💡 Idea"],
   completado: ["tag-grape", "✓ Hecho"],
 };
+
+/** Trip "vibe" presets (tone + emoji) for the create wizard / settings. */
+export const VIBES: { tone: Tone; emoji: string; label: string }[] = [
+  { tone: "pool", emoji: "🏝️", label: "Playa" },
+  { tone: "palm", emoji: "⛰️", label: "Montaña" },
+  { tone: "sunset", emoji: "🌅", label: "Roadtrip" },
+  { tone: "grape", emoji: "🌮", label: "Ciudad" },
+  { tone: "night", emoji: "🎉", label: "Fiesta" },
+  { tone: "coral", emoji: "🏄", label: "Aventura" },
+];
+
+/** Trip status options for the settings sheet. */
+export const STATUS_OPTIONS: { value: TripStatus; label: string }[] = [
+  { value: "planeando", label: "🌴 Planeando" },
+  { value: "idea", label: "💡 Idea" },
+  { value: "completado", label: "✓ Hecho" },
+];
 
 /** Bottom-nav tabs inside a trip. Maps to /trip/[id]/<seg>. */
 export const TABS = [

@@ -17,11 +17,16 @@ export default function LoginPage() {
   const [busy, setBusy] = useState<null | "google" | "magic" | "password">(null);
   const [err, setErr] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
+  const [next, setNext] = useState("/");
 
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
     if (p.get("error")) setErr("No se pudo completar el inicio de sesión. Verifica la config de URLs en Supabase.");
+    const n = p.get("next");
+    if (n && n.startsWith("/")) setNext(n);
   }, []);
+
+  const callbackUrl = () => `${SITE_URL}/auth/callback?next=${encodeURIComponent(next)}`;
 
   async function client() {
     const { getBrowserClient } = await import("@/lib/supabase/client");
@@ -35,7 +40,7 @@ export default function LoginPage() {
       const supabase = await client();
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
-        options: { redirectTo: `${SITE_URL}/auth/callback` },
+        options: { redirectTo: callbackUrl() },
       });
       if (error) throw error;
     } catch (e) {
@@ -53,7 +58,7 @@ export default function LoginPage() {
       const supabase = await client();
       const { error } = await supabase.auth.signInWithOtp({
         email: email.trim(),
-        options: { emailRedirectTo: `${SITE_URL}/auth/callback` },
+        options: { emailRedirectTo: callbackUrl() },
       });
       if (error) throw error;
       setSent(true);
@@ -76,11 +81,11 @@ export default function LoginPage() {
         const { data, error } = await supabase.auth.signUp({
           email: email.trim(),
           password,
-          options: { emailRedirectTo: `${SITE_URL}/auth/callback` },
+          options: { emailRedirectTo: callbackUrl() },
         });
         if (error) throw error;
         if (data.session) {
-          router.push("/");
+          router.push(next);
           router.refresh();
         } else {
           setInfo("Cuenta creada. Si pide confirmación, revisa tu correo; si no, ya puedes entrar.");
@@ -89,7 +94,7 @@ export default function LoginPage() {
       } else {
         const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
         if (error) throw error;
-        router.push("/");
+        router.push(next);
         router.refresh();
       }
     } catch (e) {

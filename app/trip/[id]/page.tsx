@@ -56,9 +56,12 @@ export default function DashboardPage() {
             <Icon name="chevL" size={20} />
           </button>
           <div className="row center gap8" style={{ marginLeft: "auto" }}>
-            <ViewerChip person={me} onClick={() => openSheet("viewer")} dark />
+            <ViewerChip person={me} onClick={() => openSheet("profile")} dark />
             <button type="button" className="icon-btn glass" onClick={() => openSheet("invite")} aria-label="Invitar">
               <Icon name="share" size={18} />
+            </button>
+            <button type="button" className="icon-btn glass" onClick={() => openSheet("settings")} aria-label="Ajustes del viaje">
+              <Icon name="settings" size={18} />
             </button>
           </div>
         </div>

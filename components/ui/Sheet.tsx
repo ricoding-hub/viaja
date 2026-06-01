@@ -1,23 +1,31 @@
 "use client";
 import { useEffect, useRef, type ReactNode } from "react";
 
-/** Bottom-sheet on phones / centered modal on desktop (ported from prototype `Sheet`).
- *  Adds dialog semantics, Esc-to-close, and focus-on-open. */
+/** Bottom-sheet on phones / centered modal on desktop. Dialog semantics +
+ *  Esc-to-close + focus-on-open. The focus effect depends only on `open`
+ *  (onClose is read via a ref) so typing in inputs does NOT re-run it — that
+ *  was stealing focus and closing the mobile keyboard on every keystroke. */
 export function Sheet({ open, onClose, children }: { open: boolean; onClose: () => void; children: ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
+      if (e.key === "Escape") onCloseRef.current();
     };
     document.addEventListener("keydown", onKey);
-    const t = setTimeout(() => ref.current?.focus(), 30);
+    // Move focus into the dialog once, but never steal it from an autofocus input.
+    const t = setTimeout(() => {
+      const el = ref.current;
+      if (el && !el.contains(document.activeElement)) el.focus();
+    }, 40);
     return () => {
       document.removeEventListener("keydown", onKey);
       clearTimeout(t);
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
   return (

@@ -5,21 +5,12 @@ import { Icon, Sheet } from "@/components/ui";
 import { PhotoUpload } from "@/components/PhotoUpload";
 import { useActions } from "@/lib/hooks";
 import { formatDateRange } from "@/lib/dates";
+import { VIBES } from "@/lib/constants";
 import { useUI } from "@/store/ui";
-import type { Tone } from "@/lib/types";
-
-const VIBES: { tone: Tone; emoji: string; label: string }[] = [
-  { tone: "pool", emoji: "🏝️", label: "Playa" },
-  { tone: "palm", emoji: "⛰️", label: "Montaña" },
-  { tone: "sunset", emoji: "🌅", label: "Roadtrip" },
-  { tone: "grape", emoji: "🌮", label: "Ciudad" },
-  { tone: "night", emoji: "🎉", label: "Fiesta" },
-  { tone: "coral", emoji: "🏄", label: "Aventura" },
-];
 
 export function CreateTrip({ open }: { open: boolean }) {
   const router = useRouter();
-  const { createTrip, setCover } = useActions();
+  const { createTrip } = useActions();
   const closeSheet = useUI((s) => s.closeSheet);
 
   const [step, setStep] = useState(0);
@@ -50,8 +41,8 @@ export function CreateTrip({ open }: { open: boolean }) {
       startDate: start || null,
       endDate: end || null,
       people,
+      coverUrl: cover,
     });
-    if (cover) setCover(id, cover);
     close();
     router.push(`/trip/${id}`);
   }

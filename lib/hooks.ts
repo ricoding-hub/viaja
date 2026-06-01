@@ -1,6 +1,5 @@
 "use client";
 import { useMemo } from "react";
-import { useUI } from "@/store/ui";
 import {
   budgetOf,
   isHost,
@@ -37,7 +36,7 @@ export function useMe() {
   return useMemo(() => people.find((p) => p.id === viewerId) || people[0], [people, viewerId]);
 }
 
-/** Everything a trip screen needs (mirrors the prototype `ctx`). */
+/** Everything a trip screen needs. */
 export function useTrip(tripId: string) {
   const trips = useData((s) => s.trips);
   const people = useData((s) => s.people);
@@ -45,7 +44,6 @@ export function useTrip(tripId: string) {
   const research = useData((s) => s.research);
   const itineraryByTrip = useData((s) => s.itineraryByTrip);
   const viewerId = useData((s) => s.viewerId);
-  const previewAsGuest = useUI((s) => s.previewAsGuest);
 
   return useMemo(() => {
     const s: DataSlice = { trips, people, options, research, itineraryByTrip, viewerId };
@@ -61,11 +59,10 @@ export function useTrip(tripId: string) {
       peopleById: peopleById(s),
       me: people.find((p) => p.id === viewerId),
       viewerId,
-      actualHost,
-      isHost: actualHost && !previewAsGuest,
+      isHost: actualHost,
       myRole: actualHost ? ("host" as const) : ("guest" as const),
     };
-  }, [trips, people, options, research, itineraryByTrip, viewerId, previewAsGuest, tripId]);
+  }, [trips, people, options, research, itineraryByTrip, viewerId, tripId]);
 }
 
 /** Stable data actions. */
@@ -76,12 +73,16 @@ export function useActions() {
     addResearch: useData((s) => s.addResearch),
     convertResearch: useData((s) => s.convertResearch),
     createTrip: useData((s) => s.createTrip),
-    addGuest: useData((s) => s.addGuest),
+    updateTrip: useData((s) => s.updateTrip),
+    deleteTrip: useData((s) => s.deleteTrip),
+    leaveTrip: useData((s) => s.leaveTrip),
+    setMemberRole: useData((s) => s.setMemberRole),
+    removeMember: useData((s) => s.removeMember),
     setPeopleCount: useData((s) => s.setPeopleCount),
     toggleConfirm: useData((s) => s.toggleConfirm),
     setCover: useData((s) => s.setCover),
     setOptionCover: useData((s) => s.setOptionCover),
-    setViewer: useData((s) => s.setViewer),
+    updateProfile: useData((s) => s.updateProfile),
   };
 }
 

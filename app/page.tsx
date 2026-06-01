@@ -1,6 +1,6 @@
 "use client";
 import { useRouter } from "next/navigation";
-import { AvStack, Icon, Meter, Photo, Skeleton, fmt } from "@/components/ui";
+import { Av, AvStack, Icon, Meter, Photo, Skeleton, fmt } from "@/components/ui";
 import { Screen } from "@/components/Screen";
 import { AppHeader } from "@/components/AppHeader";
 import { PageGrid } from "@/components/PageGrid";
@@ -16,16 +16,15 @@ export default function HomePage() {
   const openSheet = useUI((s) => s.openSheet);
   const router = useRouter();
 
-  const bell = (
-    <button type="button" className="icon-btn" aria-label="Notificaciones" style={{ position: "relative" }}>
-      <Icon name="bell" size={20} color="var(--ink-2)" />
-      <span style={{ position: "absolute", top: 9, right: 10, width: 8, height: 8, borderRadius: 99, background: "var(--coral)", border: "2px solid #fff" }} />
+  const profileBtn = me ? (
+    <button type="button" aria-label="Tu perfil" onClick={() => openSheet("profile")} style={{ border: 0, background: "none", cursor: "pointer", padding: 0, borderRadius: "50%" }}>
+      <Av p={me} size={40} />
     </button>
-  );
+  ) : null;
 
   if (!ready || !me) {
     return (
-      <Screen width="wide" header={<AppHeader kicker="Bienvenido" title="Hola 🌴" actions={bell} />}>
+      <Screen width="wide" header={<AppHeader kicker="Bienvenido" title="Hola 🌴" />}>
         <Skeleton h={196} r={20} style={{ marginBottom: 18 }} />
         <PageGrid min={300} gap={12}>
           <Skeleton h={92} /><Skeleton h={92} /><Skeleton h={92} />
@@ -40,7 +39,7 @@ export default function HomePage() {
   return (
     <Screen
       width="wide"
-      header={<AppHeader kicker="Bienvenido" title={`Hola ${me.name} 🌴`} actions={bell} />}
+      header={<AppHeader kicker="Bienvenido" title={`Hola ${me.name} 🌴`} actions={profileBtn} />}
     >
       <div className="col gap20" style={{ paddingBottom: 8 }}>
         {!featured ? (
@@ -51,7 +50,7 @@ export default function HomePage() {
             <button type="button" className="card card-int" style={{ overflow: "hidden", padding: 0, textAlign: "left", width: "100%" }} onClick={() => router.push(`/trip/${featured.id}`)}>
               <Photo tone={featured.tone} src={featured.coverUrl || undefined} alt={featured.name} h={210} r={0}>
                 <div style={{ position: "absolute", inset: 0, background: "linear-gradient(180deg, rgba(8,40,46,0) 36%, rgba(8,40,46,.82))" }} />
-                <span className="tag tag-glass" style={{ position: "absolute", top: 14, left: 14 }}>🌴 Planeando ahora</span>
+                <span className="tag tag-glass" style={{ position: "absolute", top: 14, left: 14 }}>{STATUS_TAG[featured.status][1]}</span>
                 {featured.daysLeft != null && (
                   <div style={{ position: "absolute", top: 12, right: 12, background: "rgba(255,255,255,.94)", backdropFilter: "blur(6px)", borderRadius: 14, padding: "7px 11px", textAlign: "center", boxShadow: "var(--sh-sm)" }}>
                     <div className="tnum" style={{ fontFamily: "var(--font-d)", fontWeight: 800, fontSize: 19, lineHeight: 1, color: "var(--ink)" }}>{featured.daysLeft}</div>

@@ -96,16 +96,16 @@ export function Sidebar() {
 
       <div className="side-foot col gap10">
         <div className="hairline" />
-        <div className="row center between">
-          <div className="row center gap10" style={{ minWidth: 0 }}>
+        <div className="row center between gap8">
+          <button type="button" className="row center gap10 grow" style={{ border: 0, background: "none", cursor: "pointer", padding: 4, borderRadius: 12, minWidth: 0, textAlign: "left" }} onClick={() => openSheet("profile")} aria-label="Editar tu perfil">
             {me && <Av p={me} size={34} />}
             <div className="col" style={{ minWidth: 0 }}>
               <b className="ellip" style={{ fontFamily: "var(--font-d)", fontSize: 14 }}>{me?.name ?? "Invitado"}</b>
               <span className="muted" style={{ fontSize: 11.5 }}>
-                {tripId && trip ? (myRole === "host" ? "Anfitrión" : "Invitado") : mode === "demo" ? "Modo demo" : "Conectado"}
+                {tripId && trip ? (myRole === "host" ? "Anfitrión" : "Invitado") : "Editar perfil"}
               </span>
             </div>
-          </div>
+          </button>
           {mode === "live" && (
             <button className="icon-btn" onClick={logout} aria-label="Cerrar sesión" title="Cerrar sesión" style={{ width: 38, height: 38 }}>
               <Icon name="logout" size={18} />

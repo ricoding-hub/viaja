@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 
-/** Invite link target: /join/<tripId>. Adds the signed-in user as a member. */
+/** Invite link target: /join/<tripId>?role=host|guest. Adds the signed-in user. */
 export default function JoinPage() {
   const { token } = useParams<{ token: string }>();
   const tripId = String(token);
@@ -12,6 +12,8 @@ export default function JoinPage() {
 
   useEffect(() => {
     (async () => {
+      const role = new URLSearchParams(window.location.search).get("role") === "host" ? "host" : "guest";
+
       if (!isSupabaseConfigured()) {
         router.replace(`/trip/${tripId}`);
         return;
@@ -22,14 +24,15 @@ export default function JoinPage() {
         data: { user },
       } = await supabase.auth.getUser();
       if (!user) {
-        router.replace("/login");
+        const target = `/join/${tripId}${role === "host" ? "?role=host" : ""}`;
+        router.replace(`/login?next=${encodeURIComponent(target)}`);
         return;
       }
       const { data: prof } = await supabase.from("profiles").select("id").eq("user_id", user.id).single();
       if (prof) {
         await supabase
           .from("trip_members")
-          .upsert({ trip_id: tripId, user_id: prof.id, role: "guest", confirmed: false }, { onConflict: "trip_id,user_id", ignoreDuplicates: true });
+          .upsert({ trip_id: tripId, user_id: prof.id, role, confirmed: false }, { onConflict: "trip_id,user_id", ignoreDuplicates: true });
       }
       try {
         const [{ fetchAllData }, { useData }] = await Promise.all([import("@/lib/supabase/queries"), import("@/lib/store")]);
@@ -42,10 +45,10 @@ export default function JoinPage() {
   }, [tripId, router]);
 
   return (
-    <div className="scroll">
+    <div className="screen">
       <div className="safe-top" />
-      <div className="col center" style={{ flex: 1, justifyContent: "center", gap: 10, padding: 24, textAlign: "center" }}>
-        <div className="floaty" style={{ fontSize: 48 }}>🌴</div>
+      <div className="col center" style={{ flex: 1, justifyContent: "center", gap: 14, padding: 24, textAlign: "center" }}>
+        <div className="spinner" style={{ width: 30, height: 30 }} />
         <p className="muted">{msg}</p>
       </div>
     </div>
