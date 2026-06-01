@@ -1,17 +1,20 @@
 "use client";
 import { create } from "zustand";
 import { useUI } from "@/store/ui";
-import { computeBudget } from "./budget";
+import { computeBudget, nightsOf } from "./budget";
 import { SINGLE_WINNER_CATS } from "./constants";
+import { dayLabel } from "./dates";
 import { buildDemoData, computeDaysLeft } from "./seed";
 import { isSupabaseConfigured } from "./supabase/env";
 import type {
   Budget,
   Cat,
   ItineraryDay,
+  ItineraryItem,
   MemberRole,
   OptionItem,
   Person,
+  PriceUnit,
   ResearchItem,
   Tone,
   Trip,
@@ -44,14 +47,44 @@ export type TripPatch = Partial<{
   startDate: string | null;
   endDate: string | null;
   people: number;
+  goalPerPerson: number;
 }>;
-export type ProfilePatch = { name?: string; color?: string };
+export type ProfilePatch = { name?: string; color?: string; avatarUrl?: string | null };
+
+/** Host-authored option (created directly or from an idea). */
+export interface NewOptionInput {
+  cat: Cat;
+  title: string;
+  subtitle?: string;
+  price: number;
+  unit: PriceUnit;
+  link?: string;
+  tone?: Tone;
+  emoji?: string;
+  priceNote?: string;
+  meta?: [string, string][];
+}
+export type OptionPatch = Partial<{
+  cat: Cat; title: string; subtitle: string; price: number; unit: PriceUnit;
+  link: string; tone: Tone; emoji: string; priceNote: string; meta: [string, string][];
+}>;
+export type ResearchPatch = Partial<{
+  title: string; note: string; cat: Cat; amount: number | null; source: string;
+}>;
+export interface NewItineraryItem { emoji: string; text: string; optionId?: string | null }
+export type ItineraryItemPatch = Partial<{ emoji: string; text: string }>;
+export type ItineraryDayPatch = Partial<{ title: string; date: string; tone: Tone }>;
 
 export interface RemoteAdapter {
   rate(optionId: string, userId: string, n: number): Promise<void>;
   setWinners(tripId: string, cat: Cat, winnerIds: string[]): Promise<void>;
   addResearch(item: ResearchItem): Promise<void>;
+  updateResearch(id: string, patch: ResearchPatch): Promise<void>;
+  deleteResearch(id: string): Promise<void>;
   convertResearch(researchId: string, option: OptionItem): Promise<void>;
+  addOption(option: OptionItem): Promise<void>;
+  updateOption(id: string, patch: OptionPatch): Promise<void>;
+  deleteOption(id: string): Promise<void>;
   createTrip(trip: Trip): Promise<void>;
   updateTrip(tripId: string, patch: TripPatch): Promise<void>;
   deleteTrip(tripId: string): Promise<void>;
@@ -62,13 +95,22 @@ export interface RemoteAdapter {
   setConfirm(tripId: string, userId: string, confirmed: boolean): Promise<void>;
   setCover(tripId: string, url: string): Promise<void>;
   setOptionCover(optionId: string, url: string): Promise<void>;
-  updateProfile(userId: string, fields: { name?: string; initials?: string; color?: string }): Promise<void>;
+  updateProfile(userId: string, fields: { name?: string; initials?: string; color?: string; avatar_url?: string | null }): Promise<void>;
+  addItineraryDay(day: { id: string; tripId: string; day: number; date: string; title: string; tone: Tone }): Promise<void>;
+  updateItineraryDay(id: string, patch: ItineraryDayPatch): Promise<void>;
+  deleteItineraryDay(id: string): Promise<void>;
+  addItineraryItem(item: { id: string; dayId: string; idx: number; emoji: string; text: string; optionId?: string | null }): Promise<void>;
+  updateItineraryItem(id: string, patch: { emoji?: string; text?: string; idx?: number; dayId?: string }): Promise<void>;
+  deleteItineraryItem(id: string): Promise<void>;
 }
 const noop = async () => {};
 const demoAdapter: RemoteAdapter = {
-  rate: noop, setWinners: noop, addResearch: noop, convertResearch: noop, createTrip: noop,
+  rate: noop, setWinners: noop, addResearch: noop, updateResearch: noop, deleteResearch: noop,
+  convertResearch: noop, addOption: noop, updateOption: noop, deleteOption: noop, createTrip: noop,
   updateTrip: noop, deleteTrip: noop, leaveTrip: noop, setMemberRole: noop, removeMember: noop,
   setPeopleCount: noop, setConfirm: noop, setCover: noop, setOptionCover: noop, updateProfile: noop,
+  addItineraryDay: noop, updateItineraryDay: noop, deleteItineraryDay: noop,
+  addItineraryItem: noop, updateItineraryItem: noop, deleteItineraryItem: noop,
 };
 let remote: RemoteAdapter = demoAdapter;
 export function setRemoteAdapter(a: RemoteAdapter) {
@@ -110,7 +152,19 @@ export interface DataState {
   rate: (optionId: string, n: number) => void;
   toggleWinner: (optionId: string) => void;
   addResearch: (tripId: string, item: Omit<ResearchItem, "id" | "trip" | "converted">) => void;
+  updateResearch: (researchId: string, patch: ResearchPatch) => void;
+  deleteResearch: (researchId: string) => void;
   convertResearch: (researchId: string) => void;
+  addOption: (tripId: string, draft: NewOptionInput) => void;
+  updateOption: (optionId: string, patch: OptionPatch) => void;
+  deleteOption: (optionId: string) => void;
+  addItineraryDay: (tripId: string) => void;
+  updateItineraryDay: (tripId: string, dayId: string, patch: ItineraryDayPatch) => void;
+  deleteItineraryDay: (tripId: string, dayId: string) => void;
+  addItineraryItem: (tripId: string, dayId: string, item: NewItineraryItem) => void;
+  updateItineraryItem: (tripId: string, dayId: string, itemId: string, patch: ItineraryItemPatch) => void;
+  deleteItineraryItem: (tripId: string, dayId: string, itemId: string) => void;
+  moveItineraryItem: (tripId: string, dayId: string, itemId: string, dir: -1 | 1) => void;
   createTrip: (draft: NewTripInput) => string;
   updateTrip: (tripId: string, patch: TripPatch) => void;
   deleteTrip: (tripId: string) => void;
@@ -184,17 +238,32 @@ export const useData = create<DataState>((set, get) => ({
     void remote.addResearch(r);
   },
 
+  updateResearch: (researchId, patch) => {
+    set((s) => ({ research: s.research.map((r) => (r.id === researchId ? { ...r, ...patch } : r)) }));
+    useUI.getState().showToast("Idea actualizada ✓");
+    void remote.updateResearch(researchId, patch);
+  },
+
+  deleteResearch: (researchId) => {
+    set((s) => ({ research: s.research.filter((r) => r.id !== researchId) }));
+    useUI.getState().showToast("Idea eliminada");
+    void remote.deleteResearch(researchId);
+  },
+
   convertResearch: (researchId) => {
     const s = get();
     const r = s.research.find((x) => x.id === researchId);
     if (!r || r.converted) return;
     const newId = genId();
+    const realNote = r.note && r.note !== "Agregado ahora" ? r.note : "";
+    const hasSource = r.source && r.source !== "Nota";
     const created: OptionItem = {
-      id: newId, trip: r.trip, cat: r.cat, tone: r.tone, emoji: "✨",
-      title: r.title.slice(0, 28), subtitle: r.note.slice(0, 40),
-      price: r.cat === "comida" ? 400 : 600, unit: r.cat === "hospedaje" ? "total" : "pp",
-      priceNote: "estimado", meta: [["Fuente", r.saved], ["Estado", "Nueva"]],
-      link: r.source, winner: false, coverUrl: null, votes: { [s.viewerId]: 4 },
+      id: newId, trip: r.trip, cat: r.cat === "general" ? "actividades" : r.cat, tone: r.tone, emoji: "✨",
+      title: r.title.slice(0, 48), subtitle: realNote.slice(0, 60),
+      price: r.amount ?? 0, unit: r.cat === "hospedaje" ? "total" : "pp",
+      priceNote: r.amount ? "estimado" : "Por definir",
+      meta: [], link: hasSource ? r.source : "",
+      winner: false, coverUrl: null, votes: {},
     };
     set((st) => ({
       options: [...st.options, created],
@@ -202,6 +271,31 @@ export const useData = create<DataState>((set, get) => ({
     }));
     useUI.getState().showToast("Convertida en opción ⭐ ¡ya pueden votarla!");
     void remote.convertResearch(researchId, created);
+  },
+
+  addOption: (tripId, draft) => {
+    const created: OptionItem = {
+      id: genId(), trip: tripId, cat: draft.cat, tone: draft.tone ?? "", emoji: draft.emoji ?? "✨",
+      title: draft.title.trim(), subtitle: draft.subtitle?.trim() ?? "",
+      price: Math.max(0, Math.round(draft.price || 0)), unit: draft.unit,
+      priceNote: draft.priceNote ?? "", meta: draft.meta ?? [],
+      link: draft.link?.trim() ?? "", winner: false, coverUrl: null, votes: {},
+    };
+    set((s) => ({ options: [...s.options, created] }));
+    useUI.getState().showToast("Opción agregada ⭐");
+    void remote.addOption(created);
+  },
+
+  updateOption: (optionId, patch) => {
+    set((s) => ({ options: s.options.map((o) => (o.id === optionId ? { ...o, ...patch } : o)) }));
+    useUI.getState().showToast("Opción actualizada ✓");
+    void remote.updateOption(optionId, patch);
+  },
+
+  deleteOption: (optionId) => {
+    set((s) => ({ options: s.options.filter((o) => o.id !== optionId) }));
+    useUI.getState().showToast("Opción eliminada");
+    void remote.deleteOption(optionId);
   },
 
   createTrip: (draft) => {
@@ -303,15 +397,122 @@ export const useData = create<DataState>((set, get) => ({
     void remote.setOptionCover(optionId, url);
   },
 
+  addItineraryDay: (tripId) => {
+    const s = get();
+    const trip = s.trips.find((t) => t.id === tripId);
+    const existing = s.itineraryByTrip[tripId] ?? [];
+    const sortKey = existing.length ? Math.max(...existing.map((d) => d.day)) + 1 : 1;
+    const pos = existing.length;
+    const day: ItineraryDay = {
+      id: genId(), day: sortKey, date: dayLabel(trip?.startDate, pos),
+      title: `Día ${pos + 1}`, tone: (trip?.tone as Tone) ?? "", items: [],
+    };
+    set((st) => ({ itineraryByTrip: { ...st.itineraryByTrip, [tripId]: [...existing, day] } }));
+    void remote.addItineraryDay({ id: day.id, tripId, day: day.day, date: day.date, title: day.title, tone: day.tone });
+  },
+
+  updateItineraryDay: (tripId, dayId, patch) => {
+    set((st) => ({
+      itineraryByTrip: {
+        ...st.itineraryByTrip,
+        [tripId]: (st.itineraryByTrip[tripId] ?? []).map((d) => (d.id === dayId ? { ...d, ...patch } : d)),
+      },
+    }));
+    void remote.updateItineraryDay(dayId, patch);
+  },
+
+  deleteItineraryDay: (tripId, dayId) => {
+    set((st) => ({
+      itineraryByTrip: { ...st.itineraryByTrip, [tripId]: (st.itineraryByTrip[tripId] ?? []).filter((d) => d.id !== dayId) },
+    }));
+    useUI.getState().showToast("Día eliminado");
+    void remote.deleteItineraryDay(dayId);
+  },
+
+  addItineraryItem: (tripId, dayId, item) => {
+    const it: ItineraryItem = { id: genId(), emoji: item.emoji, text: item.text, optionId: item.optionId ?? null };
+    let idx = 0;
+    set((st) => ({
+      itineraryByTrip: {
+        ...st.itineraryByTrip,
+        [tripId]: (st.itineraryByTrip[tripId] ?? []).map((d) => {
+          if (d.id !== dayId) return d;
+          idx = d.items.length;
+          return { ...d, items: [...d.items, it] };
+        }),
+      },
+    }));
+    useUI.getState().showToast("Agregado al itinerario 🗓️");
+    void remote.addItineraryItem({ id: it.id, dayId, idx, emoji: it.emoji, text: it.text, optionId: it.optionId });
+  },
+
+  updateItineraryItem: (tripId, dayId, itemId, patch) => {
+    set((st) => ({
+      itineraryByTrip: {
+        ...st.itineraryByTrip,
+        [tripId]: (st.itineraryByTrip[tripId] ?? []).map((d) =>
+          d.id !== dayId ? d : { ...d, items: d.items.map((i) => (i.id === itemId ? { ...i, ...patch } : i)) }
+        ),
+      },
+    }));
+    void remote.updateItineraryItem(itemId, patch);
+  },
+
+  deleteItineraryItem: (tripId, dayId, itemId) => {
+    set((st) => ({
+      itineraryByTrip: {
+        ...st.itineraryByTrip,
+        [tripId]: (st.itineraryByTrip[tripId] ?? []).map((d) =>
+          d.id !== dayId ? d : { ...d, items: d.items.filter((i) => i.id !== itemId) }
+        ),
+      },
+    }));
+    void remote.deleteItineraryItem(itemId);
+  },
+
+  moveItineraryItem: (tripId, dayId, itemId, dir) => {
+    let moved: { a: ItineraryItem; ai: number; b: ItineraryItem; bi: number } | null = null;
+    set((st) => ({
+      itineraryByTrip: {
+        ...st.itineraryByTrip,
+        [tripId]: (st.itineraryByTrip[tripId] ?? []).map((d) => {
+          if (d.id !== dayId) return d;
+          const items = [...d.items];
+          const i = items.findIndex((x) => x.id === itemId);
+          const j = i + dir;
+          if (i < 0 || j < 0 || j >= items.length) return d;
+          [items[i], items[j]] = [items[j], items[i]];
+          moved = { a: items[i], ai: i, b: items[j], bi: j };
+          return { ...d, items };
+        }),
+      },
+    }));
+    if (moved) {
+      const m = moved as { a: ItineraryItem; ai: number; b: ItineraryItem; bi: number };
+      void remote.updateItineraryItem(m.a.id, { idx: m.ai });
+      void remote.updateItineraryItem(m.b.id, { idx: m.bi });
+    }
+  },
+
   updateProfile: (patch) => {
     const { meId } = get();
-    const fields: { name?: string; initials?: string; color?: string } = {};
+    const fields: { name?: string; initials?: string; color?: string; avatar_url?: string | null } = {};
+    const local: Partial<Person> = {};
     if (patch.name != null) {
       fields.name = patch.name.trim();
       fields.initials = initialsOf(patch.name);
+      local.name = fields.name;
+      local.initials = fields.initials;
     }
-    if (patch.color != null) fields.color = patch.color;
-    set((s) => ({ people: s.people.map((p) => (p.id === meId ? { ...p, ...fields } : p)) }));
+    if (patch.color != null) {
+      fields.color = patch.color;
+      local.color = patch.color;
+    }
+    if (patch.avatarUrl !== undefined) {
+      fields.avatar_url = patch.avatarUrl;
+      local.avatarUrl = patch.avatarUrl;
+    }
+    set((s) => ({ people: s.people.map((p) => (p.id === meId ? { ...p, ...local } : p)) }));
     useUI.getState().showToast("Perfil actualizado ✓");
     void remote.updateProfile(meId, fields);
   },
@@ -364,5 +565,5 @@ export function itineraryOf(s: DataSlice, tripId: string): ItineraryDay[] {
 export function budgetOf(s: DataSlice, tripId: string): Budget {
   const trip = s.trips.find((t) => t.id === tripId);
   const count = trip?.people || membersOf(s, tripId).length || 1;
-  return computeBudget(optionsOf(s, tripId), membersOf(s, tripId), count);
+  return computeBudget(optionsOf(s, tripId), membersOf(s, tripId), count, nightsOf(trip));
 }

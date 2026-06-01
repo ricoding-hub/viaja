@@ -1,9 +1,10 @@
 "use client";
-import { AvStack, Icon, Stars, avg, fmt } from "@/components/ui";
+import { useState } from "react";
+import { Av, AvStack, Icon, Stars, avg, fmt } from "@/components/ui";
 import { PhotoUpload } from "@/components/PhotoUpload";
 import type { OptionItem, Person } from "@/lib/types";
 
-const UNIT_LABEL: Record<string, string> = { total: "total", pp: "/persona", ppd: "/persona/día" };
+const UNIT_LABEL: Record<string, string> = { total: "total", pp: "/persona", ppd: "/persona/noche" };
 
 export function OptionCard({
   o,
@@ -13,6 +14,8 @@ export function OptionCard({
   onRate,
   onChoose,
   onCover,
+  onEdit,
+  onDelete,
 }: {
   o: OptionItem;
   members: Person[];
@@ -21,11 +24,15 @@ export function OptionCard({
   onRate: (n: number) => void;
   onChoose: () => void;
   onCover: (url: string) => void;
+  onEdit?: () => void;
+  onDelete?: () => void;
 }) {
+  const [confirmDel, setConfirmDel] = useState(false);
   const myVote = o.votes[viewerId] || 0;
   const rating = avg(o.votes);
   const voters = members.filter((m) => o.votes[m.id] != null);
   const voteCount = Object.keys(o.votes).length;
+  const viewer = members.find((m) => m.id === viewerId);
 
   return (
     <div className="card" style={{ overflow: "hidden", border: o.winner ? "2px solid var(--turq)" : "1px solid var(--line)", boxShadow: o.winner ? "var(--sh-md)" : "var(--sh-sm)" }}>
@@ -73,9 +80,12 @@ export function OptionCard({
         <div style={{ height: 1, background: "var(--line)", margin: "12px 0" }} />
 
         <div className="row center between">
-          <div className="col gap4">
-            <span className="kicker" style={{ fontSize: 10 }}>Tu voto</span>
-            <Stars value={myVote} onRate={onRate} size={22} />
+          <div className="row center gap8">
+            {viewer && <Av p={viewer} size={28} />}
+            <div className="col gap4">
+              <span className="kicker" style={{ fontSize: 10 }}>Tu voto</span>
+              <Stars value={myVote} onRate={onRate} size={22} />
+            </div>
           </div>
           <div className="col" style={{ alignItems: "flex-end", gap: 4 }}>
             <div className="row center gap4">
@@ -91,9 +101,27 @@ export function OptionCard({
 
         <div style={{ marginTop: 12 }}>
           {canChoose ? (
-            <button className={"btn btn-block btn-sm " + (o.winner ? "btn-turq" : "btn-ghost")} onClick={onChoose}>
-              {o.winner ? "✓ Elegida para el plan" : "Elegir esta opción"}
-            </button>
+            confirmDel ? (
+              <div className="col gap8">
+                <p className="muted" style={{ fontSize: 12.5 }}>¿Eliminar <b>{o.title}</b>? Se quita del presupuesto.</p>
+                <div className="row gap8">
+                  <button className="btn btn-ghost btn-sm grow" onClick={() => setConfirmDel(false)}>Cancelar</button>
+                  <button className="btn btn-coral btn-sm grow" onClick={() => { setConfirmDel(false); onDelete?.(); }}>Sí, eliminar</button>
+                </div>
+              </div>
+            ) : (
+              <div className="row center gap8">
+                <button className={"btn btn-sm grow " + (o.winner ? "btn-turq" : "btn-ghost")} onClick={onChoose}>
+                  {o.winner ? "✓ Elegida" : "Elegir"}
+                </button>
+                {onEdit && (
+                  <button className="mini-btn" onClick={onEdit} aria-label="Editar opción"><Icon name="edit" size={15} color="var(--ink-soft)" /></button>
+                )}
+                {onDelete && (
+                  <button className="mini-btn" onClick={() => setConfirmDel(true)} aria-label="Eliminar opción"><Icon name="trash" size={15} color="var(--coral-deep)" /></button>
+                )}
+              </div>
+            )
           ) : o.winner ? (
             <div className="tag tag-turq" style={{ width: "100%", justifyContent: "center", padding: "9px" }}>Elegida por el anfitrión</div>
           ) : (

@@ -152,6 +152,25 @@ export function Icon({ name, size = 24, stroke = 2, color = "currentColor", fill
       </>
     ),
     crown: <path d="M3 7l4 4 5-7 5 7 4-4-1.6 12.5H4.6L3 7zM4.6 19.5h14.8" />,
+    pool: (
+      <>
+        <path d="M3 14.5c1.5 0 1.5-1.3 3-1.3s1.5 1.3 3 1.3 1.5-1.3 3-1.3 1.5 1.3 3 1.3 1.5-1.3 3-1.3 1.5 1.3 3 1.3" />
+        <path d="M3 19c1.5 0 1.5-1.3 3-1.3s1.5 1.3 3 1.3 1.5-1.3 3-1.3 1.5 1.3 3 1.3 1.5-1.3 3-1.3 1.5 1.3 3 1.3" />
+        <path d="M8 12V6a2 2 0 014 0M16 11V6a2 2 0 014 0" />
+      </>
+    ),
+    building: (
+      <>
+        <path d="M5 21V5a2 2 0 012-2h6a2 2 0 012 2v16M15 21V9h3a1 1 0 011 1v11M3 21h18" />
+        <path d="M8 7h2M8 11h2M8 15h2" />
+      </>
+    ),
+    map: (
+      <>
+        <path d="M9 4L3 6v14l6-2 6 2 6-2V4l-6 2-6-2z" />
+        <path d="M9 4v14M15 6v14" />
+      </>
+    ),
   };
   const p = paths[name] || null;
   return (

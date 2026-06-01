@@ -465,3 +465,11 @@ create policy "covers_write"  on storage.objects for insert to authenticated wit
 create policy "covers_update" on storage.objects for update to authenticated using (bucket_id = 'covers');
 create policy "option_photos_write"  on storage.objects for insert to authenticated with check (bucket_id = 'option-photos');
 create policy "option_photos_update" on storage.objects for update to authenticated using (bucket_id = 'option-photos');
+
+-- ============================================================
+-- 0006 — Idea budgets + itinerary item links
+--  • research.amount: optional estimated budget per idea (feeds option price)
+--  • itinerary_items.option_id: link a plan item to the option it came from
+-- ============================================================
+alter table research add column if not exists amount int;
+alter table itinerary_items add column if not exists option_id uuid references options(id) on delete set null;

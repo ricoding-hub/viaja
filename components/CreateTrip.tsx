@@ -97,12 +97,12 @@ export function CreateTrip({ open }: { open: boolean }) {
       {step === 1 && (
         <div className="col gap14 stagger">
           <h2 style={{ fontSize: 24 }}>Fechas & gente 🗓️</h2>
-          <div className="row gap10">
-            <label className="col grow" style={{ gap: 6 }}>
+          <div className="field-row">
+            <label className="col" style={{ gap: 6 }}>
               <span className="kicker">Llegada</span>
               <input className="input" type="date" value={start} onChange={(e) => setStart(e.target.value)} />
             </label>
-            <label className="col grow" style={{ gap: 6 }}>
+            <label className="col" style={{ gap: 6 }}>
               <span className="kicker">Salida</span>
               <input className="input" type="date" value={end} min={start || undefined} onChange={(e) => setEnd(e.target.value)} />
             </label>

@@ -1,4 +1,14 @@
 const MONTHS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+const WEEKDAYS = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+
+/** Short label for the Nth day of a trip, e.g. "Vie 19 jun". Empty if undated. */
+export function dayLabel(start: string | null | undefined, offset: number): string {
+  if (!start) return "";
+  const d = new Date(start + "T00:00:00");
+  if (isNaN(d.getTime())) return "";
+  d.setDate(d.getDate() + offset);
+  return `${WEEKDAYS[d.getDay()]} ${d.getDate()} ${MONTHS[d.getMonth()]}`;
+}
 
 /** Spanish display string for a date range, e.g. "19–23 jun 2026". */
 export function formatDateRange(start?: string | null, end?: string | null): string {

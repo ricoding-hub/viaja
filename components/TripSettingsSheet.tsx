@@ -77,12 +77,12 @@ export function TripSettingsSheet({ open, tripId }: { open: boolean; tripId: str
             <span className="field-label">Subtítulo</span>
             <input className="input" value={sub} onChange={(e) => setSub(e.target.value)} maxLength={60} placeholder="Ej. Cumple en la playa 🎂" />
           </label>
-          <div className="row gap10">
-            <label className="col grow gap8">
+          <div className="field-row">
+            <label className="col gap8">
               <span className="field-label">Llegada</span>
               <input type="date" className="input" value={start} onChange={(e) => setStart(e.target.value)} />
             </label>
-            <label className="col grow gap8">
+            <label className="col gap8">
               <span className="field-label">Salida</span>
               <input type="date" className="input" value={end} min={start || undefined} onChange={(e) => setEnd(e.target.value)} />
             </label>

@@ -1,8 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Av, Sheet } from "@/components/ui";
+import { Sheet } from "@/components/ui";
+import { PhotoUpload } from "@/components/PhotoUpload";
 import { useActions, useMe } from "@/lib/hooks";
-import { initialsOf } from "@/lib/store";
 import { useUI } from "@/store/ui";
 import { PALETTE } from "@/lib/constants";
 
@@ -12,32 +12,49 @@ export function ProfileSheet({ open }: { open: boolean }) {
   const closeSheet = useUI((s) => s.closeSheet);
   const [name, setName] = useState("");
   const [color, setColor] = useState(PALETTE[0]);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (open && me) {
       setName(me.name || "");
       setColor(me.color || PALETTE[0]);
+      setAvatarUrl(me.avatarUrl ?? null);
     }
   }, [open, me]);
 
   function save() {
     const n = name.trim();
     if (!n) return;
-    updateProfile({ name: n, color });
+    updateProfile({ name: n, color, avatarUrl });
     closeSheet();
   }
-
-  const preview = { id: "preview", name: name || "Tú", initials: initialsOf(name || "T"), color };
 
   return (
     <Sheet open={open} onClose={closeSheet}>
       <h2 className="h2">Tu perfil</h2>
       <p className="muted" style={{ fontSize: 13, margin: "4px 0 16px" }}>
-        Tu nombre y color se ven en todas las pantallas.
+        Tu nombre y foto se ven en todas las pantallas y en las votaciones.
       </p>
 
-      <div className="col center gap10" style={{ marginBottom: 16 }}>
-        <Av p={preview} size={72} />
+      <div className="col center gap8" style={{ marginBottom: 18 }}>
+        <PhotoUpload
+          id={`avatar-${me?.id ?? "me"}`}
+          kind="avatar"
+          shape="circle"
+          value={avatarUrl}
+          tone={avatarUrl ? "" : "palm"}
+          editable
+          onChange={(url) => setAvatarUrl(url)}
+          h={104}
+          editPosition="br"
+          editVariant="icon"
+          editLabel="Cambiar foto"
+        />
+        {avatarUrl ? (
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => setAvatarUrl(null)}>Quitar foto</button>
+        ) : (
+          <span className="muted" style={{ fontSize: 12 }}>Toca la cámara para subir tu foto 📸</span>
+        )}
       </div>
 
       <label className="col gap8" style={{ marginBottom: 16 }}>
@@ -45,7 +62,7 @@ export function ProfileSheet({ open }: { open: boolean }) {
         <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="¿Cómo te llamas?" autoFocus maxLength={40} />
       </label>
 
-      <span className="field-label">Color</span>
+      <span className="field-label">Color del avatar {avatarUrl ? "(sin foto)" : ""}</span>
       <div className="row wrap gap10" style={{ marginTop: 8 }}>
         {PALETTE.map((c) => (
           <button

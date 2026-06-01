@@ -19,6 +19,8 @@ export interface PhotoUploadProps {
   /** labeled pill vs round camera icon */
   editVariant?: "label" | "icon";
   editLabel?: string;
+  /** rectangular cover (default) or circular avatar */
+  shape?: "rect" | "circle";
   alt?: string;
   placeholder?: string;
   style?: CSSProperties;
@@ -42,6 +44,7 @@ export function PhotoUpload({
   editPosition = "br",
   editVariant = "label",
   editLabel = "Cambiar portada",
+  shape = "rect",
   alt,
   placeholder,
   style,
@@ -67,11 +70,21 @@ export function PhotoUpload({
     }
   }
 
+  const radius = shape === "circle" ? "50%" : r;
   return (
-    <div style={{ position: "relative", height: h, borderRadius: r, overflow: "hidden", ...style }}>
-      <Photo tone={tone} src={value || undefined} h="100%" r={r} alt={alt} label={!value && !editable ? placeholder : undefined} style={{ pointerEvents: "none" }}>
-        {children}
-      </Photo>
+    <div style={{ position: "relative", height: h, width: shape === "circle" ? h : undefined, flex: shape === "circle" ? "none" : undefined, ...style }}>
+      {/* media is clipped to the shape; the edit button lives OUTSIDE the clip
+          so it isn't cropped on circular avatars */}
+      <div style={{ position: "absolute", inset: 0, borderRadius: radius, overflow: "hidden" }}>
+        <Photo tone={tone} src={value || undefined} h="100%" r={radius} alt={alt} label={!value && !editable ? placeholder : undefined} style={{ pointerEvents: "none" }}>
+          {children}
+        </Photo>
+        {busy && (
+          <div className="ph-busy">
+            <span className="spinner" style={{ width: 18, height: 18, borderWidth: 2 }} /> Subiendo…
+          </div>
+        )}
+      </div>
       {editable && (
         <button
           type="button"
@@ -84,11 +97,6 @@ export function PhotoUpload({
           {editVariant === "label" && <span>{value ? editLabel : placeholder || editLabel}</span>}
           <input ref={inputRef} type="file" accept="image/png,image/jpeg,image/webp" onChange={onFile} />
         </button>
-      )}
-      {busy && (
-        <div className="ph-busy">
-          <span className="spinner" style={{ width: 18, height: 18, borderWidth: 2 }} /> Subiendo…
-        </div>
       )}
     </div>
   );

@@ -80,6 +80,8 @@ export interface ResearchItem {
   title: string;
   source: string;
   note: string;
+  /** optional estimated budget for this idea (MXN) */
+  amount?: number | null;
   /** display name of saver */
   saved: string;
   savedById?: string;
@@ -87,13 +89,22 @@ export interface ResearchItem {
   converted: string | null;
 }
 
+/** A single line in a day plan. Optionally linked to the option it came from. */
+export interface ItineraryItem {
+  id: string;
+  emoji: string;
+  text: string;
+  optionId?: string | null;
+}
+
 export interface ItineraryDay {
+  /** DB row id (generated client-side for new days) */
+  id: string;
   day: number;
   date: string;
   title: string;
   tone: Tone;
-  /** [emoji, text] pairs */
-  items: [string, string][];
+  items: ItineraryItem[];
 }
 
 export interface CatMetaEntry {

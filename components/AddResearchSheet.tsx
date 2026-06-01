@@ -1,8 +1,8 @@
 "use client";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Icon, Sheet } from "@/components/ui";
 import { catMeta } from "@/lib/catMeta";
-import type { Cat, ResearchType, Tone } from "@/lib/types";
+import type { Cat, ResearchItem, ResearchType, Tone } from "@/lib/types";
 
 const TONES: Tone[] = ["pool", "sunset", "palm", "grape", "coral", "night"];
 const CATS: Cat[] = ["hospedaje", "transporte", "actividades", "comida", "general"];
@@ -21,40 +21,76 @@ function detect(val: string): { type: ResearchType; isLink: boolean } {
   return { type, isLink };
 }
 
+export interface NewResearch {
+  type: ResearchType;
+  cat: Cat;
+  tone: Tone;
+  title: string;
+  source: string;
+  note: string;
+  amount: number | null;
+  saved: string;
+  savedById?: string;
+}
+
 export function AddResearchSheet({
   open,
   savedBy,
+  savedById,
+  editing,
   onClose,
   onAdd,
+  onSave,
 }: {
   open: boolean;
   savedBy: string;
+  savedById?: string;
+  editing?: ResearchItem | null;
   onClose: () => void;
-  onAdd: (item: { type: ResearchType; cat: Cat; tone: Tone; title: string; source: string; note: string; saved: string }) => void;
+  onAdd: (item: NewResearch) => void;
+  onSave: (id: string, patch: { title?: string; cat?: Cat; amount?: number | null; source?: string }) => void;
 }) {
   const [val, setVal] = useState("");
   const [cat, setCat] = useState<Cat>("general");
+  const [amount, setAmount] = useState("");
   const { type, isLink } = detect(val);
+
+  useEffect(() => {
+    if (open) {
+      setVal(editing?.title ?? "");
+      setCat(editing?.cat ?? "general");
+      setAmount(editing?.amount != null ? String(editing.amount) : "");
+    }
+  }, [open, editing]);
 
   function save() {
     if (!val.trim()) return;
-    onAdd({
-      type,
-      cat,
-      tone: TONES[Math.floor(Math.random() * TONES.length)],
-      title: val.trim().slice(0, 52),
-      source: isLink ? val.trim() : "Nota",
-      note: "Agregado ahora",
-      saved: savedBy,
-    });
+    const amt = amount.trim() ? Math.max(0, Math.round(Number(amount) || 0)) : null;
+    const title = val.trim().slice(0, 60);
+    if (editing) {
+      onSave(editing.id, { title, cat, amount: amt, source: isLink ? val.trim() : editing.source });
+    } else {
+      onAdd({
+        type,
+        cat,
+        tone: TONES[Math.floor(Math.random() * TONES.length)],
+        title,
+        source: isLink ? val.trim() : "Nota",
+        note: "",
+        amount: amt,
+        saved: savedBy,
+        savedById,
+      });
+    }
     setVal("");
     setCat("general");
+    setAmount("");
     onClose();
   }
 
   return (
     <Sheet open={open} onClose={onClose}>
-      <h2 style={{ fontSize: 22 }}>Guardar idea 📌</h2>
+      <h2 style={{ fontSize: 22 }}>{editing ? "Editar idea ✏️" : "Guardar idea 📌"}</h2>
       <p className="muted" style={{ fontSize: 13, margin: "4px 0 14px" }}>Pega un link, TikTok, vuelo o escribe una nota.</p>
 
       <textarea className="input" placeholder="https://tiktok.com/… · airbnb.com/… · o una nota 📝" value={val} onChange={(e) => setVal(e.target.value)} autoFocus />
@@ -74,8 +110,17 @@ export function AddResearchSheet({
         ))}
       </div>
 
+      <label className="col gap8" style={{ marginTop: 16 }}>
+        <span className="kicker">Presupuesto estimado (opcional)</span>
+        <div className="row center gap8">
+          <span className="muted" style={{ fontFamily: "var(--font-d)", fontSize: 18 }}>$</span>
+          <input className="input" type="number" inputMode="numeric" min={0} placeholder="0" value={amount} onChange={(e) => setAmount(e.target.value)} />
+        </div>
+        <span className="muted" style={{ fontSize: 11.5 }}>Si la conviertes en opción, este monto entra al presupuesto.</span>
+      </label>
+
       <button className="btn btn-coral btn-block" style={{ marginTop: 18 }} disabled={!val.trim()} onClick={save}>
-        Guardar idea
+        {editing ? "Guardar cambios" : "Guardar idea"}
       </button>
     </Sheet>
   );

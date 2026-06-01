@@ -1,11 +1,22 @@
 import { CAT_ORDER, DAYS } from "./constants";
-import type { Budget, CatBudget, OptionItem, Person } from "./types";
+import type { Budget, CatBudget, OptionItem, Person, Trip } from "./types";
 
 /** Cost of a single option for N people. (Ported from app.jsx `costOf`.) */
 export function costOf(o: Pick<OptionItem, "unit" | "price">, n: number, days = DAYS): number {
   if (o.unit === "pp") return o.price * n;
   if (o.unit === "ppd") return o.price * n * days;
   return o.price; // 'total'
+}
+
+/** Nights in a trip, derived from its real dates; falls back to DAYS if undated. */
+export function nightsOf(trip?: Trip | null): number {
+  if (trip?.startDate && trip?.endDate) {
+    const s = new Date(trip.startDate + "T00:00:00");
+    const e = new Date(trip.endDate + "T00:00:00");
+    const n = Math.round((e.getTime() - s.getTime()) / 86400000);
+    if (n >= 1) return n;
+  }
+  return DAYS;
 }
 
 /**

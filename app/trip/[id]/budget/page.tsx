@@ -1,4 +1,5 @@
 "use client";
+import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Count, EmptyState, Icon, Meter, Skeleton, fmt } from "@/components/ui";
 import { Screen } from "@/components/Screen";
@@ -14,9 +15,18 @@ export default function BudgetPage() {
   const ready = useReady();
   const router = useRouter();
   const { trip, budget, isHost } = useTrip(tripId);
-  const { setPeopleCount } = useActions();
+  const { setPeopleCount, updateTrip } = useActions();
+  const [editingGoal, setEditingGoal] = useState(false);
+  const [goalInput, setGoalInput] = useState("");
 
-  const header = <AppHeader title="Presupuesto" subtitle="Se actualiza solo con lo que eligen 💸" back={() => router.push(`/trip/${tripId}`)} />;
+  const header = (
+    <AppHeader
+      title="Presupuesto"
+      subtitle="Se arma con las opciones que eligen 💸"
+      back={() => router.push(`/trip/${tripId}`)}
+      actions={isHost ? <button className="btn btn-ghost btn-sm" onClick={() => router.push(`/trip/${tripId}/options`)}><Icon name="layers" size={15} color="var(--ink-soft)" /> Opciones</button> : undefined}
+    />
+  );
 
   if (!ready || !trip) {
     return <Screen header={header}><div className="col gap14"><Skeleton h={150} r={22} /><Skeleton h={120} r={18} /><Skeleton h={96} r={18} /></div></Screen>;
@@ -60,11 +70,37 @@ export default function BudgetPage() {
           <div className="card card-p col gap10">
             <div className="row center between">
               <span className="kicker">Meta por persona</span>
-              <b className="tnum" style={{ fontFamily: "var(--font-d)", fontSize: 15 }}>{fmt(goal)}</b>
+              {editingGoal ? (
+                <div className="row center gap6">
+                  <span className="muted" style={{ fontFamily: "var(--font-d)" }}>$</span>
+                  <input
+                    className="input"
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    value={goalInput}
+                    onChange={(e) => setGoalInput(e.target.value)}
+                    autoFocus
+                    style={{ width: 110, minHeight: 38, padding: "6px 10px" }}
+                  />
+                  <button className="mini-btn" aria-label="Guardar meta" onClick={() => { const n = Math.max(0, Math.round(Number(goalInput) || 0)); if (n) updateTrip(tripId, { goalPerPerson: n }); setEditingGoal(false); }}>
+                    <Icon name="check" size={16} color="var(--turq-deep)" />
+                  </button>
+                </div>
+              ) : (
+                <span className="row center gap6">
+                  <b className="tnum" style={{ fontFamily: "var(--font-d)", fontSize: 15 }}>{fmt(goal)}</b>
+                  {isHost && (
+                    <button className="mini-btn" aria-label="Editar meta" onClick={() => { setGoalInput(String(goal)); setEditingGoal(true); }}>
+                      <Icon name="edit" size={14} color="var(--ink-soft)" />
+                    </button>
+                  )}
+                </span>
+              )}
             </div>
             <Meter pct={Math.min(100, (budget.perCap / goal) * 100)} color={overGoal ? "var(--coral)" : "var(--turq)"} />
             <p style={{ fontSize: 12.5, color: overGoal ? "var(--coral-deep)" : "var(--turq-deep)", fontWeight: 700 }}>
-              {overGoal ? `⚠️ Van ${fmt(diff)} arriba de la meta` : `🎉 ¡Van ${fmt(diff)} por debajo de la meta!`}
+              {budget.perCap === 0 ? "Aún sin gastos — elige opciones para empezar." : overGoal ? `⚠️ Van ${fmt(diff)} arriba de la meta` : `🎉 ¡Van ${fmt(diff)} por debajo de la meta!`}
             </p>
           </div>
 

@@ -89,20 +89,21 @@ export async function fetchAllData(supabase: SupabaseClient): Promise<LiveData> 
     title: r.title,
     source: r.source,
     note: r.note,
+    amount: r.amount ?? null,
     saved: r.saved_by ? nameById[r.saved_by] ?? "Alguien" : "Alguien",
     savedById: r.saved_by ?? undefined,
     converted: r.converted_option_id,
   }));
 
   // itinerary
-  const itemsByDay: Record<string, { idx: number; emoji: string; text: string }[]> = {};
+  const itemsByDay: Record<string, { id: string; idx: number; emoji: string; text: string; option_id: string | null }[]> = {};
   for (const it of items.data ?? []) (itemsByDay[it.day_id] ||= []).push(it);
   const itineraryByTrip: Record<string, ItineraryDay[]> = {};
   for (const d of days.data ?? []) {
     const dayItems = (itemsByDay[d.id] ?? [])
       .sort((a, b) => a.idx - b.idx)
-      .map((i) => [i.emoji, i.text] as [string, string]);
-    (itineraryByTrip[d.trip_id] ||= []).push({ day: d.day, date: d.date, title: d.title, tone: d.tone, items: dayItems });
+      .map((i) => ({ id: i.id, emoji: i.emoji, text: i.text, optionId: i.option_id ?? null }));
+    (itineraryByTrip[d.trip_id] ||= []).push({ id: d.id, day: d.day, date: d.date, title: d.title, tone: d.tone, items: dayItems });
   }
   for (const k of Object.keys(itineraryByTrip)) itineraryByTrip[k].sort((a, b) => a.day - b.day);
 

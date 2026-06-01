@@ -211,6 +211,8 @@ p{ margin:0; }
   display:flex; align-items:center; justify-content:space-around; padding:0 6px;
 }
 @media (min-width:860px){ .nav{ display:none; } }
+/* hide the bottom nav while a sheet/modal is open so it never overlaps it */
+body.sheet-open .nav{ display:none; }
 .nav-btn{
   border:0; background:none; cursor:pointer;
   display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px;
@@ -259,6 +261,23 @@ p{ margin:0; }
 .icon-btn:hover{ transform:translateY(-1px); }
 .icon-btn:active{ transform:scale(.94); }
 .icon-btn.glass{ background:rgba(255,255,255,.92); backdrop-filter:blur(8px); }
+
+/* compact 34px icon button for inline row actions (edit/delete/move) */
+.mini-btn{
+  display:inline-flex; align-items:center; justify-content:center; flex:none;
+  width:34px; height:34px; border-radius:10px; border:1px solid var(--line);
+  background:#fff; color:var(--ink-2); cursor:pointer; transition:background .15s, border-color .15s, transform .12s;
+}
+.mini-btn:hover{ border-color:var(--ink-soft); }
+.mini-btn:active{ transform:scale(.92); }
+.mini-btn:disabled{ opacity:.4; cursor:not-allowed; }
+/* tiny pill (Sí/No inline confirm) */
+.chip-mini{
+  border:1px solid var(--line); background:#fff; cursor:pointer;
+  font-family:var(--font-d); font-weight:700; font-size:12.5px; color:var(--ink-2);
+  padding:5px 11px; border-radius:99px; min-height:32px;
+}
+.chip-mini:hover{ border-color:var(--ink-soft); }
 
 .fab{
   position:absolute; right:20px; bottom:calc(var(--nav-h) + 28px + env(safe-area-inset-bottom)); z-index:var(--z-fab);
@@ -317,6 +336,8 @@ p{ margin:0; }
   right:-24px; top:-34px; background:radial-gradient(circle,rgba(255,210,120,.85),rgba(255,210,120,0) 70%); }
 .ph::after{ content:''; position:absolute; inset:0;
   background:repeating-linear-gradient(115deg,rgba(255,255,255,.08) 0 2px,transparent 2px 24px); mix-blend-mode:overlay; }
+/* Once a real photo is loaded, drop the decorative blob + diagonal texture. */
+.ph:has(.ph-img)::before, .ph:has(.ph-img)::after{ display:none; }
 .ph-sunset{ background:linear-gradient(135deg,#ffd27a,#ff8a5b 45%,#ff5e7e); }
 .ph-palm{ background:linear-gradient(135deg,#b6ecc0,#2fbf8f 55%,#0f8a86); }
 .ph-pool{ background:linear-gradient(135deg,#bdeefb,#3ec5e8 50%,#1d8fd1); }
@@ -432,14 +453,19 @@ p{ margin:0; }
    INPUTS / SEGMENTED / RANGE
    ============================================================ */
 .input{
-  width:100%; border:1.5px solid var(--line); background:#fff; border-radius:14px;
-  padding:13px 15px; font-family:var(--font-b); font-size:15px; color:var(--ink);
+  width:100%; min-width:0; border:1.5px solid var(--line); background:#fff; border-radius:14px;
+  padding:13px 15px; font-family:var(--font-b); font-size:16px; color:var(--ink);
   outline:none; transition:border .18s, box-shadow .18s; min-height:48px;
 }
 .input::placeholder{ color:var(--ink-soft); }
 .input:focus{ border-color:var(--turq); box-shadow:0 0 0 4px var(--turq-soft); }
+/* normalize native date/number controls so they don't overflow their column */
+.input[type=date], .input[type=number]{ -webkit-appearance:none; appearance:none; }
 textarea.input{ resize:none; min-height:96px; line-height:1.5; }
 .field-label{ font-family:var(--font-d); font-weight:700; font-size:var(--fs-label); letter-spacing:.1em; text-transform:uppercase; color:var(--ink-soft); }
+/* two fields side-by-side that stack on narrow phones (fixes date-input collapse) */
+.field-row{ display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+@media (max-width:430px){ .field-row{ grid-template-columns:1fr; } }
 
 .seg{ display:flex; background:var(--sand-2); border-radius:13px; padding:4px; gap:4px; }
 .seg button{
