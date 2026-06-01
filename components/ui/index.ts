@@ -10,3 +10,4 @@ export { Count } from "./Count";
 export { Sheet } from "./Sheet";
 export { SourceGlyph } from "./SourceGlyph";
 export { EmptyState } from "./EmptyState";
+export { Skeleton, Spinner } from "./Skeleton";

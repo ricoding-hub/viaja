@@ -1,7 +1,10 @@
 "use client";
 import { useState } from "react";
 import { useParams, useRouter } from "next/navigation";
-import { EmptyState, Icon } from "@/components/ui";
+import { EmptyState, Icon, Skeleton } from "@/components/ui";
+import { Screen } from "@/components/Screen";
+import { AppHeader } from "@/components/AppHeader";
+import { PageGrid } from "@/components/PageGrid";
 import { OptionCard } from "@/components/OptionCard";
 import { CompareSheet } from "@/components/CompareSheet";
 import { GuestBanner } from "@/components/GuestBanner";
@@ -20,20 +23,20 @@ export default function OptionsPage() {
   const [filter, setFilter] = useState<"all" | Cat>("all");
   const [compare, setCompare] = useState<Cat | null>(null);
 
-  if (!ready) return null;
+  if (!ready) {
+    return (
+      <Screen width="wide" header={<AppHeader title="Opciones" subtitle="Comparen y voten con estrellas ⭐" />}>
+        <PageGrid min={320} gap={12}><Skeleton h={300} r={18} /><Skeleton h={300} r={18} /></PageGrid>
+      </Screen>
+    );
+  }
 
   const cats = CAT_ORDER.filter((c) => options.some((o) => o.cat === c));
   const shown = filter === "all" ? cats : cats.filter((c) => c === filter);
 
   return (
-    <div className="scroll">
-      <div className="safe-top" />
-      <div className="pad col gap14">
-        <div>
-          <h1 style={{ fontSize: 26 }}>Opciones</h1>
-          <p className="muted" style={{ fontSize: 13 }}>Comparen y voten con estrellas ⭐</p>
-        </div>
-
+    <Screen width="wide" header={<AppHeader title="Opciones" subtitle="Comparen y voten con estrellas ⭐" back={() => router.push(`/trip/${tripId}`)} />}>
+      <div className="col gap16">
         {!isHost && <GuestBanner person={me} />}
 
         {options.length === 0 ? (
@@ -52,37 +55,38 @@ export default function OptionsPage() {
             {shown.map((cat) => {
               const opts = options.filter((o) => o.cat === cat);
               return (
-                <div key={cat} className="col gap10">
+                <section key={cat} className="col gap12">
                   <div className="row center between">
                     <div className="row center gap8">
                       <Icon name={catMeta[cat].icon} size={18} color={catMeta[cat].color} />
-                      <h3 style={{ fontSize: 17 }}>{catMeta[cat].label}</h3>
+                      <h2 className="h3">{catMeta[cat].label}</h2>
                     </div>
                     {opts.length > 1 && (
                       <button className="btn btn-ghost btn-sm" onClick={() => setCompare(cat)}>Comparar {opts.length}</button>
                     )}
                   </div>
-                  {opts.map((o) => (
-                    <OptionCard
-                      key={o.id}
-                      o={o}
-                      members={members}
-                      viewerId={viewerId}
-                      canChoose={isHost}
-                      onRate={(n) => rate(o.id, n)}
-                      onChoose={() => toggleWinner(o.id)}
-                      onCover={(url) => setOptionCover(o.id, url)}
-                    />
-                  ))}
-                </div>
+                  <PageGrid min={320} gap={12}>
+                    {opts.map((o) => (
+                      <OptionCard
+                        key={o.id}
+                        o={o}
+                        members={members}
+                        viewerId={viewerId}
+                        canChoose={isHost}
+                        onRate={(n) => rate(o.id, n)}
+                        onChoose={() => toggleWinner(o.id)}
+                        onCover={(url) => setOptionCover(o.id, url)}
+                      />
+                    ))}
+                  </PageGrid>
+                </section>
               );
             })}
           </>
         )}
-        <div className="pb-nav" />
       </div>
 
       <CompareSheet open={!!compare} cat={compare} options={compare ? options.filter((o) => o.cat === compare) : []} onClose={() => setCompare(null)} />
-    </div>
+    </Screen>
   );
 }

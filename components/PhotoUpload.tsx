@@ -1,6 +1,6 @@
 "use client";
 import { useRef, useState, type CSSProperties, type ReactNode } from "react";
-import { Photo } from "@/components/ui";
+import { Icon, Photo } from "@/components/ui";
 import { useUI } from "@/store/ui";
 import { uploadImage, type UploadKind } from "@/lib/upload";
 import type { Tone } from "@/lib/types";
@@ -14,15 +14,21 @@ export interface PhotoUploadProps {
   editable?: boolean;
   h?: number | string;
   r?: number | string;
+  /** corner for the edit button (default bottom-right) */
+  editPosition?: "br" | "bl" | "tr" | "tl";
+  /** labeled pill vs round camera icon */
+  editVariant?: "label" | "icon";
+  editLabel?: string;
+  alt?: string;
   placeholder?: string;
   style?: CSSProperties;
   children?: ReactNode;
 }
 
 /**
- * Editable cover/photo. Shows the uploaded image or a tropical gradient
- * placeholder; tapping (when editable) opens the file picker and uploads.
- * Replaces the prototype <image-slot> drag-to-fill component.
+ * Editable cover/photo. The media is a non-interactive background; when
+ * `editable`, a SMALL corner button opens the file picker — it never overlays
+ * (and blocks) other controls. Replaces the prototype <image-slot>.
  */
 export function PhotoUpload({
   id,
@@ -33,7 +39,11 @@ export function PhotoUpload({
   editable = false,
   h = 150,
   r = 0,
-  placeholder = "Toca para subir una foto 📷",
+  editPosition = "br",
+  editVariant = "label",
+  editLabel = "Cambiar portada",
+  alt,
+  placeholder,
   style,
   children,
 }: PhotoUploadProps) {
@@ -59,16 +69,27 @@ export function PhotoUpload({
 
   return (
     <div style={{ position: "relative", height: h, borderRadius: r, overflow: "hidden", ...style }}>
-      <Photo tone={tone} src={value || undefined} h="100%" r={r} label={!value && !editable ? placeholder : undefined}>
+      <Photo tone={tone} src={value || undefined} h="100%" r={r} alt={alt} label={!value && !editable ? placeholder : undefined} style={{ pointerEvents: "none" }}>
         {children}
       </Photo>
       {editable && (
-        <button type="button" className="ph-upload" onClick={() => inputRef.current?.click()} aria-label="Subir foto">
-          {!value && <span className="ph-label" style={{ pointerEvents: "none" }}>📷 {placeholder}</span>}
+        <button
+          type="button"
+          className={`ph-edit ph-edit-${editPosition}${editVariant === "icon" ? " ph-edit-icon" : ""}`}
+          onClick={() => inputRef.current?.click()}
+          aria-label={editLabel}
+          title={editLabel}
+        >
+          <Icon name="camera" size={16} />
+          {editVariant === "label" && <span>{value ? editLabel : placeholder || editLabel}</span>}
           <input ref={inputRef} type="file" accept="image/png,image/jpeg,image/webp" onChange={onFile} />
         </button>
       )}
-      {busy && <div className="ph-busy">Subiendo…</div>}
+      {busy && (
+        <div className="ph-busy">
+          <span className="spinner" style={{ width: 18, height: 18, borderWidth: 2 }} /> Subiendo…
+        </div>
+      )}
     </div>
   );
 }

@@ -30,7 +30,7 @@ export function OptionCard({
   return (
     <div className="card" style={{ overflow: "hidden", border: o.winner ? "2px solid var(--turq)" : "1px solid var(--line)", boxShadow: o.winner ? "var(--sh-md)" : "var(--sh-sm)" }}>
       <div style={{ position: "relative" }}>
-        <PhotoUpload id={`photo-${o.id}`} kind="option" tone={o.tone} value={o.coverUrl} editable={canChoose} onChange={onCover} h={120} r={0}>
+        <PhotoUpload id={`photo-${o.id}`} kind="option" tone={o.tone} value={o.coverUrl} alt={o.title} editable={canChoose} onChange={onCover} h={132} r={0} editVariant="icon" editPosition="tl" editLabel="Cambiar foto">
           {o.winner && (
             <span className="tag tag-win" style={{ position: "absolute", top: 10, right: 10 }}>
               <Icon name="trophy" size={13} color="#fff" /> Elegida

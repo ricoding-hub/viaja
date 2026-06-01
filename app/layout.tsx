@@ -1,10 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { AppProviders } from "./providers";
-import { DeviceFrame } from "@/components/DeviceFrame";
-import { Toast } from "@/components/Toast";
-import { ConfettiHost } from "@/components/ConfettiHost";
-import { GlobalSheets } from "@/components/GlobalSheets";
+import { AppShell } from "@/components/AppShell";
 
 export const metadata: Metadata = {
   title: "Viaja — Planeador de viajes en grupo",
@@ -28,12 +25,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="es">
       <body>
         <AppProviders>
-          <DeviceFrame>
-            {children}
-            <Toast />
-            <ConfettiHost />
-            <GlobalSheets />
-          </DeviceFrame>
+          <AppShell>{children}</AppShell>
         </AppProviders>
       </body>
     </html>
