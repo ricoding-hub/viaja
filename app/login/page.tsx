@@ -21,7 +21,11 @@ export default function LoginPage() {
 
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
-    if (p.get("error")) setErr("No se pudo completar el inicio de sesión. Verifica la config de URLs en Supabase.");
+    const e = p.get("error");
+    if (e) {
+      const reason = decodeURIComponent(e);
+      setErr(reason === "auth" ? "No se pudo completar el inicio de sesión. Verifica la config de URLs en Supabase." : `No se pudo iniciar sesión: ${reason}`);
+    }
     const n = p.get("next");
     if (n && n.startsWith("/")) setNext(n);
   }, []);
