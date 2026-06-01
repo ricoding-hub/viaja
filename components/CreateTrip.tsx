@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { Icon, Sheet } from "@/components/ui";
 import { PhotoUpload } from "@/components/PhotoUpload";
 import { useActions } from "@/lib/hooks";
-import { useData } from "@/lib/store";
+import { formatDateRange } from "@/lib/dates";
 import { useUI } from "@/store/ui";
 import type { Tone } from "@/lib/types";
 
@@ -17,24 +17,10 @@ const VIBES: { tone: Tone; emoji: string; label: string }[] = [
   { tone: "coral", emoji: "🏄", label: "Aventura" },
 ];
 
-const MONTHS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
-
-function fmtDates(start: string, end: string): string {
-  if (!start) return "Sin fecha";
-  const s = new Date(start + "T00:00:00");
-  const e = end ? new Date(end + "T00:00:00") : null;
-  const y = (e || s).getFullYear();
-  if (e && s.getMonth() === e.getMonth()) return `${s.getDate()}–${e.getDate()} ${MONTHS[s.getMonth()]} ${y}`;
-  if (e) return `${s.getDate()} ${MONTHS[s.getMonth()]} – ${e.getDate()} ${MONTHS[e.getMonth()]} ${y}`;
-  return `${s.getDate()} ${MONTHS[s.getMonth()]} ${y}`;
-}
-
 export function CreateTrip({ open }: { open: boolean }) {
   const router = useRouter();
   const { createTrip, setCover } = useActions();
-  const setNewTripCover = useData((s) => s.setCover);
   const closeSheet = useUI((s) => s.closeSheet);
-  const showToast = useUI((s) => s.showToast);
 
   const [step, setStep] = useState(0);
   const [name, setName] = useState("");
@@ -60,7 +46,7 @@ export function CreateTrip({ open }: { open: boolean }) {
       sub: dest.trim() || vibe.label,
       tone: vibe.tone,
       emoji: vibe.emoji,
-      dates: fmtDates(start, end),
+      dates: formatDateRange(start, end),
       startDate: start || null,
       endDate: end || null,
       people,
@@ -150,7 +136,7 @@ export function CreateTrip({ open }: { open: boolean }) {
               <span style={{ fontSize: 26 }}>{vibe.emoji}</span>
               <span className="col" style={{ alignItems: "flex-start" }}>
                 <b style={{ fontFamily: "var(--font-d)" }}>{name.trim() || "Tu viaje"}</b>
-                <span className="muted" style={{ fontSize: 12 }}>{fmtDates(start, end)} · {people} personas</span>
+                <span className="muted" style={{ fontSize: 12 }}>{formatDateRange(start, end)} · {people} personas</span>
               </span>
             </span>
             <span className="tag tag-turq">{vibe.label}</span>

@@ -1,19 +1,31 @@
 "use client";
 import { useEffect } from "react";
 import { useData } from "@/lib/store";
+import { isSupabaseConfigured } from "@/lib/supabase/env";
 
 /**
- * Client bootstrap. In demo mode (no Supabase env) it loads the in-memory
- * dataset. In live mode the server layout hydrates the store first (Phase 7);
- * this still runs the demo fallback if hydration hasn't happened.
+ * Client bootstrap. Demo mode (no Supabase env) is already seeded at store
+ * init; live mode loads the signed-in user's data + subscribes to realtime.
  */
 export function AppProviders({ children }: { children: React.ReactNode }) {
   const ready = useData((s) => s.ready);
   const bootstrapDemo = useData((s) => s.bootstrapDemo);
 
   useEffect(() => {
-    if (!ready) bootstrapDemo();
-  }, [ready, bootstrapDemo]);
+    let cleanup = () => {};
+    if (isSupabaseConfigured()) {
+      import("@/lib/supabase/live")
+        .then((m) => m.bootstrapLive())
+        .then((fn) => {
+          cleanup = fn;
+        })
+        .catch((e) => console.error("[viaja] live bootstrap failed", e));
+    } else if (!ready) {
+      bootstrapDemo();
+    }
+    return () => cleanup();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return <>{children}</>;
 }

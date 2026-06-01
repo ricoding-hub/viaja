@@ -23,6 +23,11 @@ export interface Person {
   confirmed?: boolean;
 }
 
+export interface MemberInfo {
+  role: MemberRole;
+  confirmed: boolean;
+}
+
 export interface Trip {
   id: string;
   name: string;
@@ -41,6 +46,8 @@ export interface Trip {
   active?: boolean;
   coverUrl?: string | null;
   memberIds: string[];
+  /** per-trip role + confirmation, keyed by person id */
+  memberInfo: Record<string, MemberInfo>;
   ownerId?: string;
 }
 

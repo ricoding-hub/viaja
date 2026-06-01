@@ -57,7 +57,15 @@ export function setRemoteAdapter(a: RemoteAdapter) {
   remote = a;
 }
 
-const genId = (p: string) => p + Math.random().toString(36).slice(2, 9);
+// Real UUIDs: optimistic rows share the id used for the DB insert, so realtime
+// re-fetches reconcile cleanly (no temp/real duplicates) and navigation works.
+const genId = (): string => {
+  try {
+    return crypto.randomUUID();
+  } catch {
+    return "id-" + Math.random().toString(36).slice(2, 10);
+  }
+};
 
 // In demo mode (no Supabase env) seed the store immediately so SSR/first paint
 // render real content (consistent hydration). Live mode starts empty and is
@@ -178,7 +186,7 @@ export const useData = create<DataState>((set, get) => ({
   },
 
   addResearch: (tripId, item) => {
-    const r: ResearchItem = { ...item, id: genId("r-"), trip: tripId, converted: null };
+    const r: ResearchItem = { ...item, id: genId(), trip: tripId, converted: null };
     set((s) => ({ research: [r, ...s.research] }));
     useUI.getState().showToast("Idea guardada 📌");
     void remote.addResearch(r);
@@ -187,38 +195,35 @@ export const useData = create<DataState>((set, get) => ({
   convertResearch: (researchId) => {
     const s = get();
     const r = s.research.find((x) => x.id === researchId);
-    if (!r) return;
-    const newId = "opt-" + researchId;
-    let created: OptionItem | undefined;
-    if (!s.options.find((o) => o.id === newId)) {
-      created = {
-        id: newId,
-        trip: r.trip,
-        cat: r.cat,
-        tone: r.tone,
-        emoji: "✨",
-        title: r.title.slice(0, 28),
-        subtitle: r.note.slice(0, 40),
-        price: r.cat === "comida" ? 400 : 600,
-        unit: r.cat === "hospedaje" ? "total" : "pp",
-        priceNote: "estimado",
-        meta: [["Fuente", r.saved], ["Estado", "Nueva"]],
-        link: r.source,
-        winner: false,
-        coverUrl: null,
-        votes: { [s.viewerId]: 4 },
-      };
-    }
+    if (!r || r.converted) return;
+    const newId = genId();
+    const created: OptionItem = {
+      id: newId,
+      trip: r.trip,
+      cat: r.cat,
+      tone: r.tone,
+      emoji: "✨",
+      title: r.title.slice(0, 28),
+      subtitle: r.note.slice(0, 40),
+      price: r.cat === "comida" ? 400 : 600,
+      unit: r.cat === "hospedaje" ? "total" : "pp",
+      priceNote: "estimado",
+      meta: [["Fuente", r.saved], ["Estado", "Nueva"]],
+      link: r.source,
+      winner: false,
+      coverUrl: null,
+      votes: { [s.viewerId]: 4 },
+    };
     set((st) => ({
-      options: created ? [...st.options, created] : st.options,
+      options: [...st.options, created],
       research: st.research.map((x) => (x.id === researchId ? { ...x, converted: newId } : x)),
     }));
     useUI.getState().showToast("Convertida en opción ⭐ ¡ya pueden votarla!");
-    if (created) void remote.convertResearch(researchId, created);
+    void remote.convertResearch(researchId, created);
   },
 
   createTrip: (draft) => {
-    const id = genId("trip-");
+    const id = genId();
     const { viewerId } = get();
     const trip: Trip = {
       id,
@@ -236,6 +241,7 @@ export const useData = create<DataState>((set, get) => ({
       active: true,
       coverUrl: null,
       memberIds: [viewerId],
+      memberInfo: { [viewerId]: { role: "host", confirmed: true } },
       ownerId: viewerId,
     };
     set((s) => ({
@@ -249,7 +255,7 @@ export const useData = create<DataState>((set, get) => ({
   addGuest: (tripId, name) => {
     const trimmed = name.trim();
     if (!trimmed) return;
-    const id = genId("g-");
+    const id = genId();
     const { people } = get();
     const person: Person = {
       id,
@@ -261,7 +267,9 @@ export const useData = create<DataState>((set, get) => ({
     set((s) => ({
       people: [...s.people, person],
       trips: s.trips.map((t) =>
-        t.id === tripId ? { ...t, memberIds: [...t.memberIds, id] } : t
+        t.id === tripId
+          ? { ...t, memberIds: [...t.memberIds, id], memberInfo: { ...t.memberInfo, [id]: { role: "guest", confirmed: false } } }
+          : t
       ),
     }));
     useUI.getState().showToast(`${trimmed} fue invitado 🎉`);
@@ -277,10 +285,11 @@ export const useData = create<DataState>((set, get) => ({
     const uid = userId ?? get().viewerId;
     let next = false;
     set((s) => ({
-      people: s.people.map((p) => {
-        if (p.id !== uid) return p;
-        next = !(p.confirmed || p.host);
-        return { ...p, confirmed: next };
+      trips: s.trips.map((t) => {
+        if (t.id !== tripId) return t;
+        const cur = t.memberInfo[uid] || { role: "guest" as const, confirmed: false };
+        next = !cur.confirmed;
+        return { ...t, memberInfo: { ...t.memberInfo, [uid]: { ...cur, confirmed: next } } };
       }),
     }));
     void remote.setConfirm(tripId, uid, next);
@@ -313,12 +322,13 @@ export function peopleById(s: DataSlice): Record<string, Person> {
   return Object.fromEntries(s.people.map((p) => [p.id, p]));
 }
 
-/** A person is host of a trip if they own it or carry the (demo) host flag. */
+/** A person is host of a trip per their membership role (or trip owner). */
 export function isHost(s: DataSlice, tripId: string, personId: string): boolean {
   const trip = s.trips.find((t) => t.id === tripId);
-  if (trip?.ownerId === personId) return true;
-  const p = s.people.find((x) => x.id === personId);
-  return Boolean(p?.host);
+  if (!trip) return false;
+  const info = trip.memberInfo?.[personId];
+  if (info) return info.role === "host";
+  return trip.ownerId === personId;
 }
 
 export function membersOf(s: DataSlice, tripId: string): Person[] {
@@ -327,7 +337,14 @@ export function membersOf(s: DataSlice, tripId: string): Person[] {
   return (trip?.memberIds || [])
     .map((id) => by[id])
     .filter(Boolean)
-    .map((p) => ({ ...p, host: isHost(s, tripId, p.id) }));
+    .map((p) => {
+      const info = trip?.memberInfo?.[p.id];
+      return {
+        ...p,
+        host: info ? info.role === "host" : isHost(s, tripId, p.id),
+        confirmed: info ? info.confirmed : p.confirmed,
+      };
+    });
 }
 
 export function optionsOf(s: DataSlice, tripId: string): OptionItem[] {
