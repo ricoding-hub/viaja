@@ -4,17 +4,17 @@ import { useRouter } from "next/navigation";
 import { Icon } from "@/components/ui";
 import { SITE_URL, isSupabaseConfigured } from "@/lib/supabase/env";
 
-type Mode = "magic" | "password";
+type Mode = "password" | "magic";
 
 export default function LoginPage() {
   const router = useRouter();
   const configured = isSupabaseConfigured();
-  const [mode, setMode] = useState<Mode>("magic");
+  const [mode, setMode] = useState<Mode>("password");
   const [isSignup, setIsSignup] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [sent, setSent] = useState(false);
-  const [busy, setBusy] = useState<null | "google" | "magic" | "password">(null);
+  const [sent, setSent] = useState<"magic" | "reset" | null>(null);
+  const [busy, setBusy] = useState<null | "google" | "magic" | "password" | "reset">(null);
   const [err, setErr] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [next, setNext] = useState("/");
@@ -32,7 +32,7 @@ export default function LoginPage() {
 
   const callbackUrl = () => `${SITE_URL}/auth/callback?next=${encodeURIComponent(next)}`;
 
-  async function client() {
+  async function supabase() {
     const { getBrowserClient } = await import("@/lib/supabase/client");
     return getBrowserClient();
   }
@@ -41,8 +41,8 @@ export default function LoginPage() {
     try {
       setBusy("google");
       setErr(null);
-      const supabase = await client();
-      const { error } = await supabase.auth.signInWithOAuth({
+      const sb = await supabase();
+      const { error } = await sb.auth.signInWithOAuth({
         provider: "google",
         options: { redirectTo: callbackUrl() },
       });
@@ -59,15 +59,34 @@ export default function LoginPage() {
     try {
       setBusy("magic");
       setErr(null);
-      const supabase = await client();
-      const { error } = await supabase.auth.signInWithOtp({
+      const sb = await supabase();
+      const { error } = await sb.auth.signInWithOtp({
         email: email.trim(),
         options: { emailRedirectTo: callbackUrl() },
       });
       if (error) throw error;
-      setSent(true);
+      setSent("magic");
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Error al enviar el enlace");
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  async function resetPassword(e: React.FormEvent) {
+    e.preventDefault();
+    if (!email.trim()) return;
+    try {
+      setBusy("reset");
+      setErr(null);
+      const sb = await supabase();
+      const { error } = await sb.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: callbackUrl(),
+      });
+      if (error) throw error;
+      setSent("reset");
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Error al enviar el correo");
     } finally {
       setBusy(null);
     }
@@ -80,9 +99,9 @@ export default function LoginPage() {
       setBusy("password");
       setErr(null);
       setInfo(null);
-      const supabase = await client();
+      const sb = await supabase();
       if (isSignup) {
-        const { data, error } = await supabase.auth.signUp({
+        const { data, error } = await sb.auth.signUp({
           email: email.trim(),
           password,
           options: { emailRedirectTo: callbackUrl() },
@@ -92,20 +111,46 @@ export default function LoginPage() {
           router.push(next);
           router.refresh();
         } else {
-          setInfo("Cuenta creada. Si pide confirmación, revisa tu correo; si no, ya puedes entrar.");
+          setInfo("Cuenta creada. Revisa tu correo para confirmarla (si no llega, intenta iniciar sesión directamente).");
           setIsSignup(false);
         }
       } else {
-        const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+        const { error } = await sb.auth.signInWithPassword({ email: email.trim(), password });
         if (error) throw error;
         router.push(next);
         router.refresh();
       }
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "Error de autenticación");
+      const msg = e instanceof Error ? e.message : "Error de autenticación";
+      if (msg.toLowerCase().includes("invalid login credentials") || msg.toLowerCase().includes("email not confirmed")) {
+        setErr("Correo o contraseña incorrectos. Si aún no tienes contraseña, usa \"Olvidé mi contraseña\" para crear una.");
+      } else {
+        setErr(msg);
+      }
     } finally {
       setBusy(null);
     }
+  }
+
+  if (sent) {
+    const isReset = sent === "reset";
+    return (
+      <div className="scroll">
+        <div className="safe-top" />
+        <div className="pad col center" style={{ minHeight: "78%", justifyContent: "center", gap: 18, textAlign: "center", padding: "24px 26px" }}>
+          <div className="card card-p col center gap8" style={{ width: "100%" }}>
+            <Icon name="mail" size={30} color="var(--turq)" />
+            <h3 style={{ fontSize: 18 }}>{isReset ? "Revisa tu correo 🔑" : "Revisa tu correo 📬"}</h3>
+            <p className="muted" style={{ fontSize: 13 }}>
+              {isReset
+                ? <>Te enviamos un enlace para <b>crear una contraseña</b> a <b>{email}</b>. Ábrelo desde el mismo navegador.</>
+                : <>Te enviamos un <b>enlace mágico</b> a <b>{email}</b>. Ábrelo desde el mismo navegador.</>}
+            </p>
+            <button className="btn btn-ghost btn-sm" onClick={() => setSent(null)}>Volver</button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
@@ -127,13 +172,6 @@ export default function LoginPage() {
             <button className="btn btn-coral btn-block" onClick={() => router.push("/")}>Entrar a la demo 🌴</button>
             <p className="muted" style={{ fontSize: 12 }}>Modo demo · sin cuenta. Conecta Supabase para guardar de verdad.</p>
           </div>
-        ) : sent ? (
-          <div className="card card-p col center gap8" style={{ width: "100%" }}>
-            <Icon name="mail" size={30} color="var(--turq)" />
-            <h3 style={{ fontSize: 18 }}>Revisa tu correo 📬</h3>
-            <p className="muted" style={{ fontSize: 13 }}>Te enviamos un enlace mágico a <b>{email}</b>.</p>
-            <button className="btn btn-ghost btn-sm" onClick={() => setSent(false)}>Volver</button>
-          </div>
         ) : (
           <div className="col gap12" style={{ width: "100%" }}>
             <button className="btn btn-ghost btn-block" onClick={google} disabled={busy !== null}>
@@ -145,8 +183,8 @@ export default function LoginPage() {
             </div>
 
             <div className="seg">
-              <button className={mode === "magic" ? "on" : ""} onClick={() => { setMode("magic"); setErr(null); }}>Enlace mágico</button>
-              <button className={mode === "password" ? "on" : ""} onClick={() => { setMode("password"); setErr(null); }}>Contraseña</button>
+              <button className={mode === "password" ? "on" : ""} onClick={() => { setMode("password"); setErr(null); setInfo(null); }}>Contraseña</button>
+              <button className={mode === "magic" ? "on" : ""} onClick={() => { setMode("magic"); setErr(null); setInfo(null); }}>Enlace mágico</button>
             </div>
 
             {mode === "magic" ? (
@@ -159,13 +197,21 @@ export default function LoginPage() {
             ) : (
               <form className="col gap10" onSubmit={withPassword}>
                 <input className="input" type="email" inputMode="email" placeholder="tu@correo.com" value={email} onChange={(e) => setEmail(e.target.value)} required />
-                <input className="input" type="password" placeholder="Contraseña" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} />
+                <input className="input" type="password" placeholder="Contraseña (mín. 6 caracteres)" value={password} onChange={(e) => setPassword(e.target.value)} required minLength={6} />
                 <button className="btn btn-turq btn-block" type="submit" disabled={busy !== null || !email.trim() || !password}>
                   {busy === "password" ? "…" : isSignup ? "Crear cuenta" : "Entrar"}
                 </button>
-                <button type="button" className="muted" style={{ background: "none", border: 0, fontSize: 12.5, cursor: "pointer" }} onClick={() => setIsSignup(!isSignup)}>
-                  {isSignup ? "¿Ya tienes cuenta? Inicia sesión" : "¿Nueva cuenta? Créala"}
-                </button>
+                <div className="row" style={{ justifyContent: "space-between" }}>
+                  <button type="button" className="muted" style={{ background: "none", border: 0, fontSize: 12.5, cursor: "pointer" }} onClick={() => { setIsSignup(!isSignup); setErr(null); setInfo(null); }}>
+                    {isSignup ? "¿Ya tienes cuenta?" : "¿Cuenta nueva?"}
+                  </button>
+                  {!isSignup && (
+                    <button type="button" className="muted" style={{ background: "none", border: 0, fontSize: 12.5, cursor: "pointer" }}
+                      onClick={(ev) => { ev.preventDefault(); if (email.trim()) resetPassword(ev as unknown as React.FormEvent); else setErr("Escribe tu correo arriba y luego pulsa este enlace."); }}>
+                      Olvidé mi contraseña
+                    </button>
+                  )}
+                </div>
               </form>
             )}
 
