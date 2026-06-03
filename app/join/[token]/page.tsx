@@ -29,22 +29,14 @@ export default function JoinPage() {
         return;
       }
 
-      const { data: prof } = await supabase.from("profiles").select("id").eq("user_id", user.id).single();
-      if (!prof) {
-        setMsg("No se encontró tu perfil. Intenta cerrar sesión y volver a entrar.");
-        return;
-      }
+      const { error: joinErr } = await supabase.rpc("join_trip", {
+        p_trip_id: tripId,
+        p_role: role,
+      });
 
-      const { error: upsertErr } = await supabase
-        .from("trip_members")
-        .upsert(
-          { trip_id: tripId, user_id: prof.id, role, confirmed: false },
-          { onConflict: "trip_id,user_id", ignoreDuplicates: true }
-        );
-
-      if (upsertErr) {
-        console.error("[join] upsert failed", upsertErr);
-        setMsg(`Error al unirse: ${upsertErr.code} – ${upsertErr.message}`);
+      if (joinErr) {
+        console.error("[join] rpc failed", joinErr);
+        setMsg(`Error al unirse: ${joinErr.code} – ${joinErr.message}`);
         return;
       }
 
