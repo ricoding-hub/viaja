@@ -18,30 +18,46 @@ export default function JoinPage() {
         router.replace(`/trip/${tripId}`);
         return;
       }
+
       const { getBrowserClient } = await import("@/lib/supabase/client");
       const supabase = getBrowserClient();
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
+
+      const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         const target = `/join/${tripId}${role === "host" ? "?role=host" : ""}`;
         router.replace(`/login?next=${encodeURIComponent(target)}`);
         return;
       }
+
       const { data: prof } = await supabase.from("profiles").select("id").eq("user_id", user.id).single();
-      if (prof) {
-        await supabase
-          .from("trip_members")
-          .upsert({ trip_id: tripId, user_id: prof.id, role, confirmed: false }, { onConflict: "trip_id,user_id", ignoreDuplicates: true });
+      if (!prof) {
+        setMsg("No se encontró tu perfil. Intenta cerrar sesión y volver a entrar.");
+        return;
       }
-      try {
-        const [{ fetchAllData }, { useData }] = await Promise.all([import("@/lib/supabase/queries"), import("@/lib/store")]);
-        useData.getState().hydrateLive(await fetchAllData(supabase));
-      } catch {
-        /* realtime will reconcile */
+
+      const { error: upsertErr } = await supabase
+        .from("trip_members")
+        .upsert(
+          { trip_id: tripId, user_id: prof.id, role, confirmed: false },
+          { onConflict: "trip_id,user_id", ignoreDuplicates: true }
+        );
+
+      if (upsertErr) {
+        console.error("[join] upsert failed", upsertErr);
+        setMsg("No se pudo unir al viaje. El enlace puede ser inválido.");
+        return;
       }
+
+      // Refetch AFTER the upsert so the store has the newly joined trip.
+      // This must run last to win any race against AppProviders' bootstrapLive.
+      const { refetchLive } = await import("@/lib/supabase/live");
+      await refetchLive();
+
       router.replace(`/trip/${tripId}`);
-    })().catch(() => setMsg("No se pudo unir al viaje. Revisa el enlace."));
+    })().catch((e) => {
+      console.error("[join] unexpected error", e);
+      setMsg("No se pudo unir al viaje. Revisa el enlace.");
+    });
   }, [tripId, router]);
 
   return (

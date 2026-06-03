@@ -4,6 +4,13 @@ import { fetchAllData } from "./queries";
 import { makeAdapter } from "./adapter";
 import { setRemoteAdapter, useData } from "@/lib/store";
 
+/** Immediately re-fetches all data and updates the store. Used by the join
+ *  page after upserting a membership to avoid a race with bootstrapLive. */
+export async function refetchLive(): Promise<void> {
+  const supabase = getBrowserClient();
+  useData.getState().hydrateLive(await fetchAllData(supabase));
+}
+
 /**
  * Live bootstrap: load the signed-in user's data, install the Supabase write
  * adapter, and subscribe to realtime. On any change we debounce-refetch the

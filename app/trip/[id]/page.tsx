@@ -1,4 +1,5 @@
 "use client";
+import { useEffect, useRef, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Av, Icon, Ring, Skeleton, fmt } from "@/components/ui";
 import { Screen } from "@/components/Screen";
@@ -21,7 +22,21 @@ export default function DashboardPage() {
   const { setCover } = useActions();
   const { trip, members, options, research, itinerary, budget, me, isHost } = useTrip(tripId);
 
-  if (!ready) return <DashboardSkeleton />;
+  // If ready but trip is missing, it may be a bootstrap race after joining via
+  // invite link. Retry a fresh fetch once before declaring not found.
+  const [resolved, setResolved] = useState(false);
+  const retried = useRef(false);
+  useEffect(() => {
+    if (!ready || trip) { setResolved(true); return; }
+    if (retried.current) { setResolved(true); return; }
+    retried.current = true;
+    import("@/lib/supabase/live")
+      .then((m) => m.refetchLive())
+      .catch(() => {})
+      .finally(() => setResolved(true));
+  }, [ready, trip]);
+
+  if (!ready || !resolved) return <DashboardSkeleton />;
   if (!trip) return <NotFound onBack={() => router.push("/")} />;
 
   const empty = options.length === 0;
