@@ -1,15 +1,29 @@
 "use client";
 import { useEffect, useState } from "react";
-import { Sheet } from "@/components/ui";
+import { useRouter } from "next/navigation";
+import { Sheet, Icon } from "@/components/ui";
 import { PhotoUpload } from "@/components/PhotoUpload";
 import { useActions, useMe } from "@/lib/hooks";
 import { useUI } from "@/store/ui";
+import { useData } from "@/lib/store";
 import { PALETTE } from "@/lib/constants";
 
 export function ProfileSheet({ open }: { open: boolean }) {
   const me = useMe();
   const { updateProfile } = useActions();
   const closeSheet = useUI((s) => s.closeSheet);
+  const mode = useData((s) => s.mode);
+  const router = useRouter();
+
+  async function logout() {
+    try {
+      const { getBrowserClient } = await import("@/lib/supabase/client");
+      await getBrowserClient().auth.signOut();
+    } catch { /* demo mode */ }
+    closeSheet();
+    router.push("/login");
+    router.refresh();
+  }
   const [name, setName] = useState("");
   const [color, setColor] = useState(PALETTE[0]);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
@@ -81,6 +95,17 @@ export function ProfileSheet({ open }: { open: boolean }) {
       <button className="btn btn-turq btn-block" style={{ marginTop: 22 }} disabled={!name.trim()} onClick={save}>
         Guardar
       </button>
+
+      {mode === "live" && (
+        <button
+          type="button"
+          className="btn btn-ghost btn-block row center gap8"
+          style={{ marginTop: 10, color: "var(--coral-deep)" }}
+          onClick={logout}
+        >
+          <Icon name="logout" size={16} color="var(--coral-deep)" /> Cerrar sesión
+        </button>
+      )}
     </Sheet>
   );
 }
