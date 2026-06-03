@@ -44,7 +44,7 @@ export default function JoinPage() {
 
       if (upsertErr) {
         console.error("[join] upsert failed", upsertErr);
-        setMsg("No se pudo unir al viaje. El enlace puede ser inválido.");
+        setMsg(`Error al unirse: ${upsertErr.code} – ${upsertErr.message}`);
         return;
       }
 
@@ -56,7 +56,7 @@ export default function JoinPage() {
       router.replace(`/trip/${tripId}`);
     })().catch((e) => {
       console.error("[join] unexpected error", e);
-      setMsg("No se pudo unir al viaje. Revisa el enlace.");
+      setMsg(`Error inesperado: ${e?.message ?? String(e)}`);
     });
   }, [tripId, router]);
 
